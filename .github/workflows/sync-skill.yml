@@ -22,13 +22,14 @@ jobs:
         run: |
           curl -fsSL https://riffkit.ai/skill.md     -o skill.md
           curl -fsSL https://riffkit.ai/heartbeat.md -o heartbeat.md
+          curl -fsSL https://riffkit.ai/skill.json   -o skill.json
       - name: Commit if changed
         run: |
           if ! git diff --quiet; then
             git config user.name "riffkit-bot"
             git config user.email "bot@riffkit.ai"
-            git add skill.md heartbeat.md
-            git commit -m "chore: sync skill.md + heartbeat.md from riffkit.ai"
+            git add skill.md heartbeat.md skill.json
+            git commit -m "chore: sync skill.md / heartbeat.md / skill.json from riffkit.ai"
             git push
           else
             echo "Already up to date."
