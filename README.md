@@ -20,7 +20,7 @@ riff https://www.tiktok.com/@user/video/123 into a video for my product, in Span
 
 Your agent handles the rest: source → formula → new footage → your product & character → captions, cover, hashtags.
 
-> The `skill.md` in this repo is a **readable mirror** — your agent always reads the live, canonical [`https://riffkit.ai/skill.md`](https://riffkit.ai/skill.md).
+> The `SKILL.md` in this repo is a **readable mirror** — your agent always reads the live, canonical [`https://riffkit.ai/skill.md`](https://riffkit.ai/skill.md).
 
 ## Prefer buttons?
 
