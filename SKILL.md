@@ -1,8 +1,8 @@
 ---
 name: riffkit
-version: "1.0.0"
-updated_at: "2026-06-20"
-source_url: "https://riffkit.ai/skill.md"
+version: "1.0.2"
+updated_at: "2026-07-01"
+source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video, with optional digital character, product placement, and language. You riff the formula, not the video.
   Triggers: the user says 'riff this video', 'turn this TikTok into mine', 'make a video with this product', 'remake a viral video', 'generate a short video', 'riff', 'riffkit', or sends a product image / viral link wanting a short video."
@@ -719,20 +719,20 @@ The riffkit skill is a **general AI-agent skill** — usable by any agent with "
 export SKILLS_ROOT=<one of the paths above>
 mkdir -p "${SKILLS_ROOT}/Riffkit" && cd "${SKILLS_ROOT}/Riffkit"
 
-curl -sL "https://riffkit.ai/skill.md"     -o skill.md
-curl -sL "https://riffkit.ai/heartbeat.md" -o heartbeat.md
+curl -sL "https://riffkit.ai/SKILL.md"     -o SKILL.md
+curl -sL "https://riffkit.ai/HEARTBEAT.md" -o HEARTBEAT.md
 ```
 
-Filenames are case-sensitive: `skill.md` (this file), `heartbeat.md` (version-check heartbeat).
+Filenames are case-sensitive: `SKILL.md` (this file), `HEARTBEAT.md` (version-check heartbeat).
 
-> **One-off quick use (no local install):** log in at https://riffkit.ai → Settings → Members → "AI Agent mode", send the agent the `curl -s https://riffkit.ai/skill.md` command and the `vee_session=xxx` token to start; for long-term use, install locally + set up the heartbeat.
+> **One-off quick use (no local install):** log in at https://riffkit.ai → Settings → Members → "AI Agent mode", send the agent the `curl -s https://riffkit.ai/SKILL.md` command and the `vee_session=xxx` token to start; for long-term use, install locally + set up the heartbeat.
 
 ### Step 2: install self-check
 
 Check each item in order; on any failure, return to the previous step and reinstall:
 
-1. **Files present** — `ls "${SKILLS_ROOT}/Riffkit/"` includes `skill.md` and `heartbeat.md`, exact case.
-2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/skill.json | jq -r .version` (currently: `1.0.0`).
+1. **Files present** — `ls "${SKILLS_ROOT}/Riffkit/"` includes `SKILL.md` and `HEARTBEAT.md`, exact case.
+2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.0.2`).
 3. **Network reachable** — `curl -sS -o /dev/null -w "%{http_code}" https://riffkit.ai/api/auth/me` returns `401` (no cookie is normal).
 4. **Auth reachable** — https://riffkit.ai/skill/auth opens the login page (or shows the vee_session token after login).
 
@@ -742,7 +742,7 @@ Check each item in order; on any failure, return to the previous step and reinst
 
 ## Heartbeat setup
 
-The riffkit skill keeps evolving — folding it into your agent's periodic heartbeat is the robust way to auto-sync updates, or the local skill.md drifts out of date.
+The riffkit skill keeps evolving — folding it into your agent's periodic heartbeat is the robust way to auto-sync updates, or the local SKILL.md drifts out of date.
 
 **Frequency: once every 24 hours.**
 
@@ -776,12 +776,12 @@ The riffkit skill keeps evolving — folding it into your agent's periodic heart
 
 3. Update the state file's `lastHeartbeatCheck` to the number after `now=` from the previous stdout (copy it; don't re-run `date`), and write the whole state back to `${AGENT_MEMORY_DIR}/Riffkit-heartbeat-state.json`.
 
-4. Read the local `heartbeat.md` and run the version check per its instructions.
+4. Read the local `HEARTBEAT.md` and run the version check per its instructions.
 ````
 
 > **Env conventions:**
 > - `${SKILLS_ROOT}` = your AI agent's skills root (the one exported in install step 1)
-> - `${SKILL_DIR}` = `${SKILLS_ROOT}/Riffkit` (where `skill.md` / `heartbeat.md` live)
+> - `${SKILL_DIR}` = `${SKILLS_ROOT}/Riffkit` (where `SKILL.md` / `HEARTBEAT.md` live)
 > - `${AGENT_MEMORY_DIR}` = your agent's runtime memory dir (holds `Riffkit-heartbeat-state.json`). Usually `~/.claude/memory` for Claude Code, `~/.codex/workspace/memory` for Codex.
 >
 > **The heartbeat only checks the version — no write requests.** It never submits tasks or tops up credits for you.
@@ -790,7 +790,7 @@ The riffkit skill keeps evolving — folding it into your agent's periodic heart
 
 | Intent | Example | Action |
 |---------|------|--------------|
-| Check now | "check Riffkit for updates", "update the skill" | **Skip throttling**, read `heartbeat.md` and run the version compare |
-| Force re-download | "force-update Riffkit", "reinstall the skill" | `curl`-overwrite the local skill.md directly, no version compare |
+| Check now | "check Riffkit for updates", "update the skill" | **Skip throttling**, read `HEARTBEAT.md` and run the version compare |
+| Force re-download | "force-update Riffkit", "reinstall the skill" | `curl`-overwrite the local SKILL.md directly, no version compare |
 
 After a manual trigger, also set `lastHeartbeatCheck` to the current Unix second (so the heartbeat doesn't fire again minutes later), using the same "never compute time by hand" script to read `NOW` and write it.

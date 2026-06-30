@@ -1,7 +1,7 @@
 name: sync-skill
 
-# Keep skill.md in this repo mirrored to the live, canonical
-# https://riffkit.ai/skill.md (the single source of truth, served from the
+# Keep SKILL.md in this repo mirrored to the live, canonical
+# https://riffkit.ai/SKILL.md (the single source of truth, served from the
 # Riffkit app). Runs daily + on-demand. The agent always reads the live URL,
 # so this mirror is for human browsing / GitHub discovery and never blocks use.
 
@@ -20,16 +20,16 @@ jobs:
       - uses: actions/checkout@v4
       - name: Pull live skill files
         run: |
-          curl -fsSL https://riffkit.ai/skill.md     -o SKILL.md
-          curl -fsSL https://riffkit.ai/heartbeat.md -o heartbeat.md
-          curl -fsSL https://riffkit.ai/skill.json   -o skill.json
+          curl -fsSL https://riffkit.ai/SKILL.md     -o SKILL.md
+          curl -fsSL https://riffkit.ai/HEARTBEAT.md -o HEARTBEAT.md
+          curl -fsSL https://riffkit.ai/SKILL.json   -o SKILL.json
       - name: Commit if changed
         run: |
           if ! git diff --quiet; then
             git config user.name "riffkit-bot"
             git config user.email "bot@riffkit.ai"
-            git add SKILL.md heartbeat.md skill.json
-            git commit -m "chore: sync skill.md / heartbeat.md / skill.json from riffkit.ai"
+            git add SKILL.md HEARTBEAT.md SKILL.json
+            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai"
             git push
           else
             echo "Already up to date."

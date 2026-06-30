@@ -9,7 +9,7 @@ This is the **official Riffkit agent skill**. Add it to your AI assistant (Claud
 Point your AI coding assistant at the live skill and let it set itself up:
 
 ```
-Read https://riffkit.ai/skill.md and follow the instructions to set up Riffkit.
+Read https://riffkit.ai/SKILL.md and follow the instructions to set up Riffkit.
 ```
 
 Then just ask, in plain language:
@@ -20,7 +20,7 @@ riff https://www.tiktok.com/@user/video/123 into a video for my product, in Span
 
 Your agent handles the rest: source → formula → new footage → your product & character → captions, cover, hashtags.
 
-> The `SKILL.md` in this repo is a **readable mirror** — your agent always reads the live, canonical [`https://riffkit.ai/skill.md`](https://riffkit.ai/skill.md).
+> The `SKILL.md` in this repo is a **readable mirror** — your agent always reads the live, canonical [`https://riffkit.ai/SKILL.md`](https://riffkit.ai/SKILL.md).
 
 ## Prefer buttons?
 
@@ -49,7 +49,7 @@ TikTok Shop & e-commerce sellers, ad buyers, indie founders, and faceless-accoun
 - App & sign-up — https://riffkit.ai
 - Pricing — https://riffkit.ai/pricing
 - Blog — https://riffkit.ai/blog
-- Live skill (source of truth) — https://riffkit.ai/skill.md
+- Live skill (source of truth) — https://riffkit.ai/SKILL.md
 
 ---
 
