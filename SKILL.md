@@ -1,11 +1,11 @@
 ---
 name: riffkit
-version: "1.0.2"
+version: "1.0.3"
 updated_at: "2026-07-01"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
-description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video, with optional digital character, product placement, and language. You riff the formula, not the video.
-  Triggers: the user says 'riff this video', 'turn this TikTok into mine', 'make a video with this product', 'remake a viral video', 'generate a short video', 'riff', 'riffkit', or sends a product image / viral link wanting a short video."
+description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
+  Triggers: the user says 'riff this video', 'turn this TikTok into mine', 'make a video with this product', 'make an ad' / 'make an ad creative' / 'a UGC ad for my product', 'make a promo / marketing video for my app or product', 'remake a viral video', 'generate a short video', 'riff', 'riffkit', or sends a product image / viral link wanting a short video."
 ---
 
 # Riffkit Skill
@@ -732,7 +732,7 @@ Filenames are case-sensitive: `SKILL.md` (this file), `HEARTBEAT.md` (version-ch
 Check each item in order; on any failure, return to the previous step and reinstall:
 
 1. **Files present** — `ls "${SKILLS_ROOT}/Riffkit/"` includes `SKILL.md` and `HEARTBEAT.md`, exact case.
-2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.0.2`).
+2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.0.3`).
 3. **Network reachable** — `curl -sS -o /dev/null -w "%{http_code}" https://riffkit.ai/api/auth/me` returns `401` (no cookie is normal).
 4. **Auth reachable** — https://riffkit.ai/skill/auth opens the login page (or shows the vee_session token after login).
 

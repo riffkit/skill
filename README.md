@@ -73,6 +73,7 @@ No MCP server to run, no local models — the skill is a thin layer over Riffkit
 - **A consistent character** — your own avatar and persona across every video, or **Auto** (no avatar needed).
 - **English or Spanish** — native phrasing and the right fonts, not a translated subtitle laid on top.
 - **Post-ready** — voiceover, on-screen captions timed to the audio, a cover frame, and a caption with hashtags.
+- **Ad-ready** — the same riff doubles as UGC-style ad creative for TikTok Ads & Meta Ads, batched so the testing engine never runs dry.
 - **Any look** — real footage, cartoon, or game-style; the music ducks under the voiceover so it reads as real, not AI.
 - **Full commercial rights** — everything you make is yours to post, run as ads, and monetize.
 
@@ -105,7 +106,7 @@ Riffkit is a **hosted** service: the skill is a thin layer that calls the Riffki
 
 ## Who it's for
 
-TikTok Shop & e-commerce sellers, ad buyers, indie founders, and faceless-account operators — anyone who has to keep posting short-form video.
+TikTok Shop & e-commerce sellers, performance marketers running TikTok & Meta ad creative, indie founders and makers marketing what they built, and faceless-account operators — anyone who has to keep posting short-form video.
 
 ## Links
 
