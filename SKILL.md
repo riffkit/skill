@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.0"
-updated_at: "2026-07-01"
+version: "1.1.1"
+updated_at: "2026-07-02"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -188,6 +188,7 @@ When the user says "submit / generate / riff" → call `POST /api/riffs`.
 - Every **10-15 seconds** (shorter is pointless, longer feels dead); cap a single poll loop at **15 minutes** (pipeline tops out around 8 min, 2× tolerance), then pause and tell the user.
 - Summarize, don't echo every poll: "running 2m30s, currently Stage B — creative adaptation," roughly once a minute.
 - Failure handling: on `failed`/`dead`, read `error` to locate the cause, **don't auto-retry**, tell the user and let them decide; if `queued` for over 2 minutes, note "server is at its concurrency cap (10), please wait."
+- **Insufficient credits mid-riff** (a new-source riff clears the submit gate on a rough estimate, then the real duration proves too costly): the analyze task ends with `result.auto_generate_error == "insufficient_credits"` and `result.insufficient_credits` = the same structured 402 payload (`required_credits` / `available_credits` / `topup_url`). This means **no video was generated** — even when `status == "completed"` (the analysis finished but generation was skipped). Treat it like a 402: relay `topup_url` verbatim, tell the user to top up, and note they can then **retry the same task** (`POST /api/tasks/{id}/retry`, within 24h — no re-submit needed). **Never report success on a riff whose analyze task carries this field.**
 
 ### Step 5: Deliver
 
