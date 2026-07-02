@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.1"
-updated_at: "2026-07-02"
+version: "1.1.3"
+updated_at: "2026-07-03"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -188,7 +188,7 @@ When the user says "submit / generate / riff" → call `POST /api/riffs`.
 - Every **10-15 seconds** (shorter is pointless, longer feels dead); cap a single poll loop at **15 minutes** (pipeline tops out around 8 min, 2× tolerance), then pause and tell the user.
 - Summarize, don't echo every poll: "running 2m30s, currently Stage B — creative adaptation," roughly once a minute.
 - Failure handling: on `failed`/`dead`, read `error` to locate the cause, **don't auto-retry**, tell the user and let them decide; if `queued` for over 2 minutes, note "server is at its concurrency cap (10), please wait."
-- **Insufficient credits mid-riff** (a new-source riff clears the submit gate on a rough estimate, then the real duration proves too costly): the analyze task ends with `result.auto_generate_error == "insufficient_credits"` and `result.insufficient_credits` = the same structured 402 payload (`required_credits` / `available_credits` / `topup_url`). This means **no video was generated** — even when `status == "completed"` (the analysis finished but generation was skipped). Treat it like a 402: relay `topup_url` verbatim, tell the user to top up, and note they can then **retry the same task** (`POST /api/tasks/{id}/retry`, within 24h — no re-submit needed). **Never report success on a riff whose analyze task carries this field.**
+- **Insufficient credits mid-riff** (a new-source riff clears the submit gate, then the real duration proves too costly — since v1.1.3 a low-balance riff usually gets an instant `402` at submit instead: TikTok URLs via a metadata duration probe, uploads via the on-disk file's real duration; this mid-riff case remains only when the TikTok probe couldn't determine the duration): the analyze task ends with `result.auto_generate_error == "insufficient_credits"` and `result.insufficient_credits` = the same structured 402 payload (`required_credits` / `available_credits` / `topup_url`). This means **no video was generated** — even when `status == "completed"` (the analysis finished but generation was skipped). Treat it like a 402: relay `topup_url` verbatim, tell the user to top up, and note they can then **retry the same task** (`POST /api/tasks/{id}/retry`, within 24h — no re-submit needed). **Never report success on a riff whose analyze task carries this field.**
 
 ### Step 5: Deliver
 
@@ -323,7 +323,7 @@ No body, no auth. **Response:**
 | Param | Type | Notes |
 |------|------|------|
 | `video` | File | Upload source video (≤100MB, and ≤ the render-duration cap — default 45s; see General constraints) |
-| `tiktok_url` | string | TikTok link (server downloads + extracts BGM) |
+| `tiktok_url` | string | TikTok link (server downloads + extracts BGM). Must point at **one specific video** — `…/@user/video/<id>` (query params fine) or a `vm.`/`vt.`/`tiktok.com/t/` share short link. A profile-page link (`tiktok.com/@handle`, no `/video/`) is rejected with an instant 400 |
 | `formula_id` | string | Analyzed template ID (yours or a public one; status must be `analyzed`, else 400) |
 
 **Optional creative config:**
@@ -700,6 +700,7 @@ queued → running → completed
 | `401` unauthenticated | vee_session expired/missing | Re-run the device flow (`POST /api/skill/device/authorize` → user approves → poll `.../token`); see **Auth** |
 | `402` insufficient_credits | not enough to submit | Show the shortfall in seconds (≈ credits ÷ video_credits_per_second) + relay `topup_url` verbatim, **no retry** |
 | `400` — not exactly one source | missing or multiple sources | Ensure exactly one of `video`/`tiktok_url`/`formula_id` |
+| `400` — TikTok link is not a specific video | `tiktok_url` is a profile page or other non-video link (path lacks `/video/`) | Ask the user for the link of **one video** (contains `/video/`) or a `vm.`/`vt.` share short link |
 | `400` — required missing | name/description etc. not sent | Fill per the field tables; don't paper over with empty strings |
 | `400` — invalid language | a code not in the candidates | First `GET /api/languages` for candidates |
 | `400` — U+FFFD replacement char | request body not UTF-8 | `chcp 65001` on Windows; use `json=` not `data=` |
@@ -767,7 +768,7 @@ Filenames are case-sensitive: `SKILL.md` (this file), `HEARTBEAT.md` (version-ch
 Check each item in order; on any failure, return to the previous step and reinstall:
 
 1. **Files present** — `ls "${SKILLS_ROOT}/Riffkit/"` includes `SKILL.md` and `HEARTBEAT.md`, exact case.
-2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.1.0`).
+2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.1.3`).
 3. **Network reachable** — `curl -sS -o /dev/null -w "%{http_code}" https://riffkit.ai/api/auth/me` returns `401` (no cookie is normal).
 4. **Auth reachable** — the one-click sign-in is live: `curl -s -X POST https://riffkit.ai/api/skill/device/authorize` returns JSON with a `user_code`.
 
