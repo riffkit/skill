@@ -8,6 +8,12 @@
 
 This is the **official Riffkit agent skill**. Add it to your AI assistant (Claude Code, Codex, Cursor, OpenClaw, …) and just say *"riff this TikTok into mine"* — your agent drives the whole pipeline. Or use it in the browser at **[riffkit.ai](https://riffkit.ai)**.
 
+## Watch an agent do it
+
+![One sentence in Claude Code, an ok on the plan, and a finished post-ready riff](assets/demo.gif)
+
+*A real Claude Code session — one sentence, one “ok”, and minutes later a finished video with caption, hashtags, and a strategy recap (the render wait is compressed by one title card). Walkthrough with sound: [riffkit.ai/skill](https://riffkit.ai/skill).*
+
 ## Quick start (from your agent)
 
 Point your AI coding assistant at the live skill and let it set itself up:
