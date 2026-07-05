@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.3"
-updated_at: "2026-07-03"
+version: "1.1.4"
+updated_at: "2026-07-05"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -395,7 +395,7 @@ No body, no auth. **Response:**
 | `visibility` | string | `scope` (this scope only) / `public` (platform-curated, prefer recommending) |
 | `created_at` | datetime? | Created |
 
-> `hook_type` / `cta_type` and other formula-internal fields are engine IP and **not exposed to customers**.
+> `hook_type` / `cta_type` (two legacy formula-derivative fields) are **not exposed to customers**; the per-slot formula itself IS exposed via `extraction_summary.formula_slots` (see below). The raw `analysis_card` stays customer-hidden.
 
 #### `GET /api/formulas/{formula_id}` — extraction summary
 
@@ -411,8 +411,9 @@ No body, no auth. **Response:**
 | `narrative` | string | Plain-language record of "what happens" in the source (internal markers stripped) |
 | `transcript` | `[{at, text, mode}]` | Line-by-line dialogue (`at` = start second, `mode` = on_camera_dialogue/voiceover/no_dialogue) |
 | `on_screen` | `[{kind, label, at}]` | On-screen entity timeline (`kind` = person/subtitle/product_image/... `label` = human label) |
+| `formula_slots` | `[{at, end, formula}]` | The real Stage A attention formula, one entry per funnel slot. `formula` is a free dict — typical keys: `funnel_stage` (attention/interest/payoff/cta), `function`, `mechanism`, `viewer_state_before`/`viewer_state_after`, `meaning_contract{attention_contract, payoff_meaning, proof_surface}`, `constraint`, `sensory_channel`, `retention_anchor`, `linguistic_craft`. Empty on templates analyzed before slots existed. |
 
-**Reading the emotion formula**: skim `narrative` + `transcript` for the emotional journey (how it hijacks attention, which state the viewer is moved from/to); combine with `emotion_arc` for funnel stages. **Don't look for per-segment mechanism fields** — that's the engine's core IP and isn't exposed; the agent reasons from narrative/transcript instead.
+**Reading the emotion formula**: `formula_slots` IS the formula — per-slot mechanism, viewer-state transition, and meaning contract straight from the analysis. Skim it first; use `narrative` + `transcript` for the concrete surface that carries it, and `emotion_arc` for the stage sequence at a glance.
 
 #### `POST /api/formulas/{formula_id}/refresh-analysis`
 

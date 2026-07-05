@@ -1,6 +1,6 @@
 # Riffkit Heartbeat
 
-> **Version:** 1.1.1 (kept in sync with SKILL.md's frontmatter)
+> **Version:** 1.1.4 (kept in sync with SKILL.md's frontmatter)
 
 This file is the **version-check procedure**; it does **no throttling** — throttling is owned by SKILL.md's heartbeat entry section (once every 24 hours). All this does is compare the local SKILL.md `version` against the remote `/SKILL.json` `version` and re-download on mismatch.
 
