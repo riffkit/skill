@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.4"
-updated_at: "2026-07-05"
+version: "1.1.5"
+updated_at: "2026-07-08"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -65,6 +65,7 @@ This skill makes **riff videos** only: it analyzes a source video's emotion form
 | `POST /api/riffs` | **One-shot riff (the preferred, near-only generation entry)** |
 | `GET /api/formulas` | List analyzed templates (one of the sources) |
 | `GET /api/formulas/{id}` | A template's `extraction_summary` (what was extracted) |
+| `POST /api/formulas/analyze` | **Subscribers only** — analyze a new source into your own template *without* generating (build a library) |
 | `POST /api/formulas/{id}/refresh-analysis` | Re-analyze a template whose analysis is stale |
 | `GET /api/characters` | Digital characters (optional binding) |
 | `GET /api/products` · `POST /api/products` · `POST /api/products/{id}/images` | Products + product images (optional placement) |
@@ -415,11 +416,19 @@ No body, no auth. **Response:**
 
 **Reading the emotion formula**: `formula_slots` IS the formula — per-slot mechanism, viewer-state transition, and meaning contract straight from the analysis. Skim it first; use `narrative` + `transcript` for the concrete surface that carries it, and `emotion_arc` for the stage sequence at a glance.
 
+#### `POST /api/formulas/analyze` — analyze a new source into a template (subscribers only)
+
+Turn a **new** source into the caller's own template **without generating a video** — for building a template library ahead of time. **Subscriber-only**: callers without an active subscription get `403`; they should riff instead (`POST /api/riffs`, which is paid per generated video). Subscribers are additionally volume-capped by the same margin-tied free-cost guard that protects all no-generation analysis, so heavy standalone analyzing without ever generating eventually returns `429`.
+
+**Request (multipart/form-data):** exactly one source — `tiktok_url` (a TikTok **video** link) **or** `video` (upload, ≤100MB, ≤ render cap) — plus optional `user_hint` (where the hook/payoff is) and `name`. **Response:** `{task_id, status: "queued"}`; poll `GET /api/tasks/{task_id}`. On completion the new template appears in `GET /api/formulas` (the caller's own, `status` transitions `analyzing`→`analyzed`). Unlike `POST /api/riffs`, this **never chains generation** — it only analyzes.
+
+**When to use:** the user explicitly wants to *bank a template for later* from a new source without spending on a video. For the normal "make me a video" ask, use `POST /api/riffs` — it analyzes and generates in one shot.
+
+**`403` for free users (guide them to pay):** a caller without an active subscription gets `403` with a structured detail — `{"error": "subscription_required", "message": <localized sentence>, "subscribe_url": "<server-issued billing URL>"}` (same shape family as the `402` `insufficient_credits` payload). On this 403: relay `message`, hand over `subscribe_url` **verbatim** (server-issued — never hardcode a billing URL), and note the free alternative — `POST /api/riffs` (analyze **and** generate in one shot, paid per video). Do not retry the analyze call.
+
 #### `POST /api/formulas/{formula_id}/refresh-analysis`
 
 When a template's analysis is stale (`analysis_prompt_is_latest=false`), re-run Stage A under the current prompt version. **Response:** `task_id` + `"queued"`; poll `GET /api/tasks/{task_id}`. It does not accept `user_hint` — to change the hint, riff a new source to build a fresh template.
-
-> **Customers have no standalone "analyze a new video" entry** — new sources go only through `POST /api/riffs` (analyze→generate, paid); the library can only re-analyze existing templates.
 
 ---
 
