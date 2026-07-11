@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.5"
-updated_at: "2026-07-08"
+version: "1.1.8"
+updated_at: "2026-07-11"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -74,6 +74,7 @@ This skill makes **riff videos** only: it analyzes a source video's emotion form
 | `GET /api/tasks` · `GET /api/tasks/stats` | List / count tasks |
 | `POST /api/tasks/{id}/cancel` · `POST /api/tasks/{id}/retry` | Cancel / retry |
 | `GET /api/assets` | Fetch finished videos (video + caption + hashtags) |
+| `POST /api/pipeline/backfill` · `GET /api/pipeline/backfill/occupied` | Add extra aspect ratios to an already-delivered render (reframe) / list ratios already produced |
 | `GET /api/usage/credits` | Balance |
 | `GET /api/billing/plans` · `GET /api/billing/subscription` | Plan catalog / current plan (for post-402 upsell) |
 
@@ -335,8 +336,10 @@ No body, no auth. **Response:**
 | `product_id` | string | `""` | Empty = no product placement (`no_product` mode) |
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es`); an invalid value returns 400 |
+| `resolution` | string | `720p` | `720p` / `1080p`. **1080p bills 1.5× the video seconds** (720p is the base rate). Invalid value → 400; `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p) |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
+| `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each billed as its own video); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
 
 **Response (`RiffOut`):**
 
@@ -366,8 +369,18 @@ No body, no auth. **Response:**
 | `product_visibility` | string | | `on_camera` | Only `on_camera`/`off_camera`; `no_product` is derived from `product_id=null`, never passed directly |
 | `content_anchor` | string | | `""` | ≤5000 chars |
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
+| `resolution` | string | | `720p` | `720p` / `1080p` (1080p bills 1.5× the seconds; Fast tier rejects 1080p) |
+| `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
-**Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total`.
+**Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
+
+#### `POST /api/pipeline/backfill` — add ratios to already-delivered videos
+
+Add extra **vertical** aspect ratios to renders you already have, without re-generating from scratch (each new ratio reframes the existing render). **Body (JSON):** `{source_asset_ids: string[], video_ratios: string[]}` (vertical ratios only — a horizontal ratio → 400). Any member of a render family works as the source: a reframed variant's `asset_id` resolves to the family's original master render automatically. **Response:** `{submitted: [{task_id, asset_id, ratio}], skipped: [{asset_id, ratio, reason}], batch_id}`. Skip reasons: `already_occupied` (ratio already delivered or in-flight for that family), `source_not_reframeable` (no reusable render), `landscape_source` (a `16:9`/`4:3`/`21:9` render can't be reframed — targets are portrait-only and cross-orientation reframe is unsupported; don't submit landscape sources). 402 when the balance can't cover the submitted reframes.
+
+#### `GET /api/pipeline/backfill/occupied?asset_id=<id>` — ratios already produced
+
+Returns `{occupied: string[]}` — the delivery ratios already delivered or in-flight for the asset's render family (grey these out in a ratio picker; they'd be skipped by the backfill).
 
 ---
 
