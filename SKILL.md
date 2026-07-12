@@ -1,6 +1,6 @@
 ---
 name: riffkit
-version: "1.1.8"
+version: "1.1.11"
 updated_at: "2026-07-11"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
@@ -43,7 +43,7 @@ This skill makes **riff videos** only: it analyzes a source video's emotion form
        character     default Auto (AI-generated person); may suggest a fitting character on account intent
        product       default none (no_product); attach an existing/new product to place one
        visibility    default on_camera; only meaningful when a product is attached
-       language      default en; candidates from GET /api/languages (currently en / es)
+       language      default en; candidates from GET /api/languages (currently en / es / pt / id / de / fr / it / ja / zh-CN)
        content_anchor optional creative direction; agent may proactively draft one for review
        user_hint     optional hook hint; only used for a NEW source (ignored for a template)
             ↓
@@ -161,7 +161,7 @@ Each can be left alone on its default; the agent may suggest where helpful but *
 When `product_id` is empty this field is ignored and the backend derives `no_product`. **The caller may not pass `no_product` directly** (only the two literals on_camera / off_camera are accepted). The script and visual staging differ greatly across modes, so when a product is bound always state the value and the reason at the confirmation step.
 
 **Language (default en)**
-- Candidates from `GET /api/languages` (currently `en` / `es` — overseas-first; Mandarin output is not exposed for now). Trust the endpoint, don't hardcode.
+- Candidates from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`, in picker order). Trust the endpoint, don't hardcode.
 
 **content_anchor (optional creative direction) + user_hint (optional hook hint)**
 - `content_anchor` is the agent's highest-value contribution: it may proactively draft one for the user to review (see `## content_anchor drafting framework`). If the user doesn't want one, leave it empty — the video still generates.
@@ -176,7 +176,7 @@ Ready to riff:
 ├── Source: [template name / TikTok link / uploaded filename]
 ├── Character: [name / Auto (AI-generated person)]
 ├── Product: [name + visibility / none]
-├── Language: [en / es]
+├── Language: [en / es / pt / id / de / fr / it / ja / zh-CN]
 └── content_anchor: [drafted creative direction / none]
 ```
 
@@ -335,8 +335,8 @@ No body, no auth. **Response:**
 | `character_ids` | string | `""` | JSON array string (`'["caden","chloe"]'`) or comma-separated (`caden,chloe`). **Empty = Auto mode** (no digital human, SD2 generates the person); non-empty = one task per character. **Note it's a string, not an array** (multipart limitation) |
 | `product_id` | string | `""` | Empty = no product placement (`no_product` mode) |
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
-| `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es`); an invalid value returns 400 |
-| `resolution` | string | `720p` | `720p` / `1080p`. **1080p bills 1.5× the video seconds** (720p is the base rate). Invalid value → 400; `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p) |
+| `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
+| `resolution` | string | `720p` | `720p` / `1080p`. **1080p bills 2.5× the video seconds** (720p is the base rate). Invalid value → 400; `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p) |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
 | `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each billed as its own video); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
@@ -369,7 +369,7 @@ No body, no auth. **Response:**
 | `product_visibility` | string | | `on_camera` | Only `on_camera`/`off_camera`; `no_product` is derived from `product_id=null`, never passed directly |
 | `content_anchor` | string | | `""` | ≤5000 chars |
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
-| `resolution` | string | | `720p` | `720p` / `1080p` (1080p bills 1.5× the seconds; Fast tier rejects 1080p) |
+| `resolution` | string | | `720p` | `720p` / `1080p` (1080p bills 2.5× the seconds; Fast tier rejects 1080p) |
 | `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
@@ -613,7 +613,7 @@ Riff videos are derived from template + product + character — **no manual mate
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds** — 720p is 10,000 credits/s (≈$1/s), 1080p is 15,000 credits/s (≈$1.5/s); **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get the exact rate from `video_credits_per_second` on `GET /api/billing/subscription` — don't hardcode.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds** — 720p is 10,000 credits/s (≈$1/s), 1080p is 25,000 credits/s (≈$2.5/s); **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get the exact rate from `video_credits_per_second` on `GET /api/billing/subscription` — don't hardcode.
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
