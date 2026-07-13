@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.1.11"
-updated_at: "2026-07-11"
+version: "1.2.0"
+updated_at: "2026-07-12"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -611,6 +611,57 @@ Riff videos are derived from template + product + character — **no manual mate
 
 ---
 
+### Subtitle editing (post-production, free)
+
+Fix a finished video's subtitles without regenerating it: retime a line, move captions out of a face, change text/color/size, delete a line, then re-burn. **Zero-charge** — burn/reconcile are pure post-production (no video generation), so no credits are ever spent here; don't warn the user about cost. All endpoints take the **asset id** of the finished video (`asset_role=final_reel`).
+
+**The editing loop (recommended):**
+
+1. `GET /api/assets/{asset_id}/subtitles` → current state. A 404 mentioning *reconcile* means the video predates subtitle persistence → run step 0: `POST .../subtitles/reconcile` (a short task; poll it like any task), then GET again.
+2. Modify the `entities` array and `PUT` it back (**full replacement** — send the COMPLETE list; omitting a line deletes it, appending a new object adds one).
+3. `POST .../subtitles/preview` with a timestamp inside the edited line's `time_range` → returns `preview_url` (a single frame with the edits burned in). **Look at the frame** (download/view it) and iterate steps 2-3 until it's right.
+4. `POST .../subtitles/burn` once at the end → a `subtitle_burn` task re-burns the whole video (it appears as an extra row on the source video's batch; poll it). When it completes, the asset's `file_url` serves the updated video.
+5. Wrong turn? `DELETE .../subtitles/edits` resets to the machine baseline (the original alignment) — free and instant.
+
+**Entity shape** (each item in `entities` is one subtitle line):
+
+| Field | Editable | Notes |
+|------|------|------|
+| `id` | keep | Stable line id; invent a new unique id for an added line |
+| `kind` | no | Always `"subtitle"` |
+| `time_range` | ✓ | `[start_sec, end_sec]` — retime a line here |
+| `params.text` | ✓ | The on-screen text |
+| `params.position_x_ratio` / `params.position_y_ratio` | ✓ | Normalized 0-1 position (0.5/0.8 ≈ bottom-center); same value works across resolutions |
+| `params.color` | ✓ | `#RRGGBB` |
+| `params.approximate_size` | ✓ | One of `very_small` / `small` / `medium` / `large` / `very_large` |
+| `semantic` / `attributes` | keep | Pass through unchanged |
+
+#### `GET /api/assets/{asset_id}/subtitles`
+
+Returns `{source, entities, video_url, language, has_baseline, has_edits}`. `source` = `"edited"` when unsaved edits exist, else `"baseline"`. 404 = no subtitle data yet (see reconcile above). A 200 with an **empty** `entities` list means the video was rendered without subtitles — you can still ADD some: PUT new entities (works with no baseline), preview, then burn.
+
+#### `PUT /api/assets/{asset_id}/subtitles`
+
+**Body:** `{entities: [...]}` — the complete replacement list. Validated against the burn contract; a 400 lists exactly what's malformed (fix and resend). Saving does NOT change the video — only `burn` does.
+
+#### `DELETE /api/assets/{asset_id}/subtitles/edits`
+
+Reset to the machine baseline. Idempotent; returns `{reset, source}`.
+
+#### `POST /api/assets/{asset_id}/subtitles/preview`
+
+**Body:** `{t: <seconds>}`. Renders ONE frame with the current effective subtitles; returns `{preview_url, t}` (GET `${BASE_URL}${preview_url}`). Synchronous (~1-2s). Rate limit 20/min → 429 means slow the loop down.
+
+#### `POST /api/assets/{asset_id}/subtitles/burn`
+
+No body. Submits a `subtitle_burn` task (free) → `{task_id, batch_id, status}`. 409 = a burn for this asset is already running (poll it instead of resubmitting). Rate limit 6/min. Prefer many previews + ONE burn over burning per tweak.
+
+#### `POST /api/assets/{asset_id}/subtitles/reconcile`
+
+No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}`; `{status: "exists"}` when data is already there). 404 = this video has no script on record and can't be edited. Rate limit 3/10min.
+
+---
+
 ### Billing & balance
 
 > **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds** — 720p is 10,000 credits/s (≈$1/s), 1080p is 25,000 credits/s (≈$2.5/s); **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get the exact rate from `video_credits_per_second` on `GET /api/billing/subscription` — don't hardcode.
@@ -690,6 +741,7 @@ List scope members (you must be a member, else 403). Returns `[{id, scope_id, us
 | On / off camera / none | "should the product show", "I don't want a product, just growth" | Explain `product_visibility` (incl. no `product_id` = no_product) + recommend a value |
 | Check progress | "how's it going", "done yet" | `GET /api/tasks/batch/{batch_id}` or `GET /api/tasks/{id}` |
 | Get results | "give me the download link" | `GET /api/assets?asset_role=final_reel&...` |
+| Fix subtitles | "the captions are mistimed", "move the subtitles up", "change the caption text/color" | Subtitle editing loop: `GET/PUT /api/assets/{id}/subtitles` → `POST .../preview` (iterate) → `POST .../burn` once (free; see `### Subtitle editing`) |
 | Check balance / spend | "how much is left", "how much today" | `GET /api/usage/credits` / `GET /api/usage/summary?period=today` |
 | Stop a task | "stop it", "cancel" | `POST /api/tasks/{id}/cancel` (note no refund of what's charged) |
 | Retry | "try again", "re-run" | `POST /api/tasks/{id}/retry` (state estimated cost, confirm first) |
