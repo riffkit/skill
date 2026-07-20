@@ -574,7 +574,7 @@ Cancel a `queued`/`running` task (other states → 409/400). Marks it `cancelled
 
 #### `POST /api/tasks/{task_id}/retry`
 
-Retry a `failed`/`dead` task (retryable within 24h and only if the schema version matches). **Creates a new worker with the same config = full re-charge.** `dead` is usually a task reaped by a container restart, and retry is the only recovery. Usage: on "run it again" → **first state the estimated credit cost** (`GET /api/usage/credits` + duration estimate) → let the user decide; if the failure was user-fixable (bad product image / stale template analysis), fix the cause first.
+Retry a `failed`/`dead` task (retryable within 24h and only if the schema version matches). **Creates a new worker with the same config = full re-charge.** `dead` is usually a task reaped by a container restart, and retry is the only recovery. Usage: on "run it again" → **first state the estimated credit cost** (`GET /api/usage/credits` + duration estimate) → let the user decide; if the failure was user-fixable (bad product image / stale template analysis), fix the cause first. Note: retrying an **analyze** task whose template was deleted after the failure rebuilds that template (same id) and completes normally — the deleted card reappears in `GET /api/formulas`.
 
 #### `GET /api/tasks/{task_id}/content` — extraction/rewrite preview (optional)
 
