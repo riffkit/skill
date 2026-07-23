@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.2.0"
-updated_at: "2026-07-12"
+version: "1.2.2"
+updated_at: "2026-07-22"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -524,10 +524,10 @@ Add an image. URL or file (**either/or**). Max 8 images per product, ≤50MB eac
 
 | Field | Type | Notes |
 |------|------|------|
-| `code` | string | BCP-47 code (`en` / `es`) to put in the `language` field |
-| `name` | string | Display name (English / Español) |
+| `code` | string | BCP-47 code (`en` / `es` / `ja` …) to put in the `language` field |
+| `name` | string | English display name (English / Spanish / Japanese …) |
 
-> Currently `en` / `es` (overseas-first; Mandarin output not exposed for now — adjusts with the product, so **trust this endpoint's response, don't hardcode**). `riffs` and `pipeline/batch` share the same candidate set.
+> Currently **9 languages**: `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN` (English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese, Mandarin). Each riff is **generated natively in-language** — native phrasing and captions aligned to the spoken audio, not a translated caption layered on a finished video. The set adjusts with the product, so **trust this endpoint's response, don't hardcode**. `riffs` and `pipeline/batch` share the same candidate set.
 
 ---
 
