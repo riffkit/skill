@@ -336,7 +336,8 @@ No body, no auth. **Response:**
 | `product_id` | string | `""` | Empty = no product placement (`no_product` mode) |
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
-| `resolution` | string | `720p` | `720p` / `1080p`. **1080p bills 2.5× the video seconds** (720p is the base rate). Invalid value → 400; `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p) |
+| `video_backend` | string | `seedance` | `seedance` (default) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
+| `resolution` | string | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier — do not send `720p` with `minimax`, the vocabularies are disjoint and a cross-engine value is a 400. Billing is per second at the tier's own rate, quoted against the 720p base: 1080p ×2.5, 768P ×0.5, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
 | `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each billed as its own video); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
@@ -369,7 +370,8 @@ No body, no auth. **Response:**
 | `product_visibility` | string | | `on_camera` | Only `on_camera`/`off_camera`; `no_product` is derived from `product_id=null`, never passed directly |
 | `content_anchor` | string | | `""` | ≤5000 chars |
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
-| `resolution` | string | | `720p` | `720p` / `1080p` (1080p bills 2.5× the seconds; Fast tier rejects 1080p) |
+| `video_backend` | string | | `seedance` | `seedance` (default) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
+| `resolution` | string | | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier — do not send `720p` with `minimax`, the vocabularies are disjoint and a cross-engine value is a 400. Billing is per second at the tier's own rate, quoted against the 720p base: 1080p ×2.5, 768P ×0.5, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
 | `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
@@ -397,7 +399,8 @@ The second generation mode: no source video, no template — the **creative dire
 | `duration_mode` | string | no | `smart` (default: AI picks the length by content, capped at 45s AND at what the balance affords) / `fixed` |
 | `duration_seconds` | int | with fixed | 4-45; required when `duration_mode=fixed` |
 | `language` | string | no | Default `en`; same whitelist as riffs |
-| `resolution` | string | no | `720p` (default) / `1080p` |
+| `video_backend` | string | no | `seedance` (default) / `minimax`; 400 if not configured on the deployment |
+| `resolution` | string | no | Engine-scoped — `720p`/`1080p` (seedance) or `768P`/`2K` (minimax). Omit for the engine base tier; a cross-engine value is a 400. Same rate rules as riffs |
 | `video_ratio` | string | no | Single ratio, default `9:16` (creation has no reframe fan-out at submit; use backfill later — currently riff-only) |
 
 **Response:** `{batch_id, task_ids: string[], total}` — one task per character (or one Auto task). Task `type` is `creation`; poll the batch exactly like a riff. 402 detail shape is identical to riffs. Task output shows in Library like any riff (`AssetOut.content_anchor` carries the direction).
@@ -695,7 +698,7 @@ No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds** — 720p is 10,000 credits/s (≈$1/s), 1080p is 25,000 credits/s (≈$2.5/s); **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get the exact rate from `video_credits_per_second` on `GET /api/billing/subscription` — don't hardcode.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them — Seedance 720p 10,000 credits/s (≈$1/s) / 1080p 25,000 (≈$2.5/s), MiniMax H3 768P 5,000 (≈$0.5/s) / 2K 8,000 (≈$0.8/s). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
