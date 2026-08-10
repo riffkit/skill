@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.2.6"
-updated_at: "2026-08-08"
+version: "1.3.1"
+updated_at: "2026-08-09"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -90,7 +90,7 @@ Do NOT:
 - **Auto-submit** a task just because the user said "riff this" (deciding the source + config is fine; the submit must wait for a go-ahead)
 - Treat "pick a character / pick a product" as an unskippable step — **character defaults to Auto, product defaults to none**; use the defaults when the user hasn't asked for either
 - Treat drafting `content_anchor` as a hard-stop that must be iterated to the user's satisfaction before continuing (it's an optional collaboration)
-- **Proactively report credit numbers / query the balance** — no estimate at the confirmation step; balance only surfaces on a 402 or when the user asks
+- **Proactively report credit numbers / query the balance** — no estimate at the confirmation step; balance only surfaces on a 402, before a retry (which re-charges — see `POST /api/tasks/{task_id}/retry`), or when the user asks
 - Auto-retry a failed task (retry re-charges)
 - Persist product info the user hasn't explicitly confirmed
 - Call any staff-only endpoint or probe paths not listed here
@@ -126,7 +126,7 @@ The formula skeleton decides which psychological path the viewer walks; `content
 
 | Source | Param | When |
 |---|---|---|
-| **Analyzed template** | `formula_id` | The user wants an existing template, or has riffed this source before — **skips analysis, fastest/cheapest** (analysis is free but still takes time) |
+| **Analyzed template** | `formula_id` | The user wants an existing template, or has riffed this source before — **skips analysis, fastest** (analysis is free either way; skipping it saves the wait, not credits) |
 | **TikTok link** | `tiktok_url` | The user dropped a viral link; the server auto-downloads the video + extracts BGM |
 | **Uploaded video** | `video` | The user has a local file (≤100MB, and within the render-duration cap — see General constraints; a longer source is rejected, not trimmed) |
 
@@ -196,7 +196,7 @@ When the user says "submit / generate / riff" → call `POST /api/riffs`.
 
 `GET /api/assets?asset_role=final_reel&sort=created_desc&limit=10` (add `formula_id` / `character` to filter this run):
 
-1. **Download URL** — `${BASE_URL}${file_url}` (direct video link)
+1. **Download URL** — `${BASE_URL}${file_url}` (direct video link). This is the ONLY download path — there is **no** `/api/assets/{id}/download` sub-resource (it 404s; do not invent REST-style suffixes). The GET needs the same `Cookie: vee_session=<token>` as every API call, and must follow redirects (`curl -L`): in production it 302s to object storage. A cookie-less GET returns 401.
 2. **Suggested copy** — `caption` (hook → body → closing call-to-action folded into one paragraph) + `asset_hashtags`
 3. **Strategy recap** — which emotion formula this used, through which beat the product was felt, what the content_anchor did. To see what the engine actually "extracted / rewrote," call `GET /api/tasks/{task_id}/content`.
 4. **Next iteration** — next time tweak content_anchor / character / product combo.
@@ -208,6 +208,8 @@ When the user says "submit / generate / riff" → call `POST /api/riffs`.
 > The formula and skeleton decide which psychological path the viewer walks; `content_anchor` decides what specific content fills that path.
 > When non-empty it is the **highest-priority input** for surface direction.
 > Failure test: if swapping the surface for any other topic still holds, the anchor never anchored the output → invalid.
+>
+> **Product-image targeting (on-camera placement)**: naming a product image's exact name in the anchor narrows what the engine receives to ONLY the named image(s) — the rest of the product's images are withheld from that render. Name none → all images ship (default). Use this when the product has many images and the video should feature a specific one (e.g. "开场特写 正面图"); image names come from `GET /api/products` → `images[].name`. Matching is case-insensitive with word boundaries for ASCII names.
 
 **Drafting template:**
 
@@ -362,10 +364,10 @@ No body, no auth. **Response:**
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
 | `video_backend` | string | `seedance` | `seedance` (Seedance 2.0, default) / `seedance25` (Seedance 2.5, premium) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
-| `resolution` | string | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, quoted against the 720p base: 1080p ×2.5, seedance25 720p ×1.5, 768P ×0.5, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
+| `resolution` | string | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) display rate — 720p 100 credits/s · 1080p 250/s · seedance25 720p 150/s · H3 768P 40/s · H3 2K 80/s. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
-| `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each billed as its own video); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
+| `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each metered as its own video at the **reframe** rate — on MiniMax H3 that is **80/s**, 2× that engine's 40/s render rate, still under 720p's 100/s; see Billing); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
 
 **Response (`RiffOut`):**
 
@@ -396,14 +398,14 @@ No body, no auth. **Response:**
 | `content_anchor` | string | | `""` | ≤5000 chars |
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
 | `video_backend` | string | | `seedance` | `seedance` (Seedance 2.0, default) / `seedance25` (Seedance 2.5, premium) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
-| `resolution` | string | | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, quoted against the 720p base: 1080p ×2.5, seedance25 720p ×1.5, 768P ×0.5, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
-| `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
+| `resolution` | string | | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, quoted against the 720p base: 1080p ×2.5, seedance25 720p ×1.5, 768P ×0.4, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
+| `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character; each extra ratio is metered at the reframe rate — on MiniMax H3 that is 80/s); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
 
 #### `POST /api/pipeline/backfill` — add ratios to already-delivered videos
 
-Add extra **vertical** aspect ratios to renders you already have, without re-generating from scratch (each new ratio reframes the existing render). **Body (JSON):** `{source_asset_ids: string[], video_ratios: string[]}` (vertical ratios only — a horizontal ratio → 400). Any member of a render family works as the source: a reframed variant's `asset_id` resolves to the family's original master render automatically. **Response:** `{submitted: [{task_id, asset_id, ratio}], skipped: [{asset_id, ratio, reason}], batch_id}`. Skip reasons: `already_occupied` (ratio already delivered or in-flight for that family), `source_not_reframeable` (no reusable render — this also covers a **Seedance 2.5 master longer than 15s**: 2.5 renders ≤30s in one segment but reframes execute on the 2.0 engine whose per-call window is 15s, so long 2.5 masters can't fan out into extra ratios; pick multiple ratios at submit instead), `landscape_source` (a `16:9`/`4:3`/`21:9` render can't be reframed — targets are portrait-only and cross-orientation reframe is unsupported; don't submit landscape sources). 402 when the balance can't cover the submitted reframes.
+Add extra **vertical** aspect ratios to renders you already have, without re-generating from scratch (each new ratio reframes the existing render). **Body (JSON):** `{source_asset_ids: string[], video_ratios: string[]}` (vertical ratios only — a horizontal ratio → 400). Any member of a render family works as the source: a reframed variant's `asset_id` resolves to the family's original master render automatically. **Response:** `{submitted: [{task_id, asset_id, ratio}], skipped: [{asset_id, ratio, reason}], batch_id}`. Skip reasons: `already_occupied` (ratio already delivered or in-flight for that family), `source_not_reframeable` (no reusable render — this also covers a **Seedance 2.5 master longer than 15s**: 2.5 renders ≤30s in one segment but reframes execute on the 2.0 engine whose per-call window is 15s, so long 2.5 masters can't fan out into extra ratios — and submitting multi-ratio on 2.5 with a >15s source is itself a 400 (`seedance25_multi_ratio_over_15s`), so the only route to several ratios at that length is the default engine), `landscape_source` (a `16:9`/`4:3`/`21:9` render can't be reframed — targets are portrait-only and cross-orientation reframe is unsupported; don't submit landscape sources). 402 when the balance can't cover the submitted reframes.
 
 #### `GET /api/pipeline/backfill/occupied?asset_id=<id>` — ratios already produced
 
@@ -485,7 +487,7 @@ Turn a **new** source into the caller's own template **without generating a vide
 
 **When to use:** the user explicitly wants to *bank a template for later* from a new source without spending on a video. For the normal "make me a video" ask, use `POST /api/riffs` — it analyzes and generates in one shot.
 
-**`403` for free users (guide them to pay):** a caller without an active subscription gets `403` with a structured detail — `{"error": "subscription_required", "message": <localized sentence>, "subscribe_url": "<server-issued billing URL>"}` (same shape family as the `402` `insufficient_credits` payload). On this 403: relay `message`, hand over `subscribe_url` **verbatim** (server-issued — never hardcode a billing URL), and note the free alternative — `POST /api/riffs` (analyze **and** generate in one shot, paid per video). Do not retry the analyze call.
+**`403` for free users (guide them to pay):** a caller without an active subscription gets `403` with a structured detail — `{"error": "subscription_required", "message": <localized sentence>, "subscribe_url": "<server-issued billing URL>"}` (same shape family as the `402` `insufficient_credits` payload). On this 403: relay `message`, hand over `subscribe_url` **verbatim** (server-issued — never hardcode a billing URL), and note the alternative that works without a subscription — `POST /api/riffs` (analyze **and** generate in one shot, paid per generated video). Do not retry the analyze call.
 
 #### `POST /api/formulas/{formula_id}/refresh-analysis`
 
@@ -633,7 +635,7 @@ Cancel a `queued`/`running` task (other states → 409/400). Marks it `cancelled
 
 #### `POST /api/tasks/{task_id}/retry`
 
-Retry a `failed`/`dead` task (retryable within 24h and only if the schema version matches). **Creates a new worker with the same config = full re-charge.** `dead` is usually a task reaped by a container restart, and retry is the only recovery. Usage: on "run it again" → **first state the estimated credit cost** (`GET /api/usage/credits` + duration estimate) → let the user decide; if the failure was user-fixable (bad product image / stale template analysis), fix the cause first. Note: retrying an **analyze** task whose template was deleted after the failure rebuilds that template (same id) and completes normally — the deleted card reappears in `GET /api/formulas`.
+Retry a `failed`/`dead` task (retryable within 24h and only if the schema version matches). **Creates a new worker with the same config = full re-charge.** `dead` is usually a task reaped by a container restart, and retry is the only recovery. Usage: on "run it again" → **first state the credit cost of the re-run** (the retry replays the original engine/tier: previous video seconds × that tier's rate from `GET /api/billing/subscription`'s `video_credits_per_second_map` — an exact figure, never a "from" floor; `GET /api/usage/credits` gives the balance to compare against) → let the user decide; if the failure was user-fixable (bad product image / stale template analysis), fix the cause first. Note: retrying an **analyze** task whose template was deleted after the failure rebuilds that template (same id) and completes normally — the deleted card reappears in `GET /api/formulas`.
 
 #### `GET /api/tasks/{task_id}/content` — extraction/rewrite preview (optional)
 
@@ -666,7 +668,7 @@ Review what the engine "extracted / rewrote" for a task, for the delivery strate
 
 Riff videos are derived from template + product + character — **no manual material upload is needed.** This endpoint only ingests user-provided reference videos/images. **Form:** `file` (✓, video ≤100MB / image ≤50MB), `asset_role` (✓, `reference`), `product_id` / `character_id` / `name` / `notes` (optional).
 
-> To download a finished video: just GET `${BASE_URL}${asset.file_url}`.
+> To download a finished video: GET `${BASE_URL}${asset.file_url}` **with the `vee_session` cookie and `-L`** (production 302s to object storage; no cookie → 401). There is no `/download` endpoint — `file_url` is the only path.
 
 ---
 
@@ -723,39 +725,39 @@ No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them — Seedance 2.0 720p 10,000 credits/s (≈$1/s) / 1080p 25,000 (≈$2.5/s), Seedance 2.5 720p 15,000 (≈$1.5/s — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P 5,000 (≈$0.5/s) / 2K 8,000 (≈$0.8/s). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard video ≈ 15s @720p ≈ 150,000 credits. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 720p **100 credits/s** (internal 10,000) / 1080p **250/s** (25,000), Seedance 2.5 720p **150/s** (15,000 — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P **40/s** (internal 4,000 — launch pricing) / 2K **80/s** (8,000). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** (varies by engine: MiniMax H3 40/s → 600; 720p 100/s → 1,500 = 150,000 internal). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
 | Field | Notes |
 |------|------|
 | `error` | always `"insufficient_credits"` |
-| `required_credits` / `available_credits` | raw credits — convert to seconds (below); never shown to the user as-is |
+| `required_credits` / `available_credits` | INTERNAL credits — **divide by 100** for the display credits the app shows (below); never shown to the user raw |
 | `topup_url` | **the upgrade link the backend issues — relay it verbatim, don't build a URL yourself** |
 
-On 402: **no retry, no silent failure** — present the shortfall in **seconds ONLY** (the only unit the app shows users — never credits, never USD): `seconds ≈ credits ÷ video_credits_per_second` (≈10000 @720p; exact value from `GET /api/billing/subscription`), e.g. "this riff needs ~15s but you only have ~8s left." Relay `topup_url` verbatim, and optionally call `GET /api/billing/plans` to introduce upgrades (instant, prorated against the remaining period). This is the **only time you proactively mention balance.**
+On 402: **no retry, no silent failure** — present the shortfall in **display credits ONLY** (the unit the app shows users — never raw internal credits, never USD): `display_credits = internal ÷ 100`, e.g. "this riff needs ~1,500 credits but you have ~800 left." A cheaper engine is a real lever here (MiniMax H3 renders at 40/s vs 100/s at 720p) — offer it before offering an upgrade. Relay `topup_url` verbatim, and optionally call `GET /api/billing/plans` to introduce upgrades (instant, prorated against the remaining period). This is the **only time you proactively mention balance.**
 
 #### `GET /api/usage/credits` — check balance
 
 | Field | Type | Notes |
 |------|------|------|
-| `available` | float | **Available credits** (= `total_remaining - held`) — the only field for "can I submit" |
+| `available` | float | **Available credits, RAW INTERNAL** (= `total_remaining - held`) — the only field for "can I submit". **Every number in this response is raw internal credits: ÷ 100 before saying it to the user** |
 | `held` | float | Total held by in-flight tasks |
 | `total_remaining` | float | Total unspent credits (including held) |
 | `daily_spent` / `daily_limit` | float | Spent today / daily cap (`0` = unlimited) |
-| `ledgers` | array | Per-batch detail (type / remaining / held / expires_at); expiry-first deduction is transparent to the agent |
+| `ledgers` | array | Per-batch detail (type / remaining / held / `expires_at`); the earliest-refreshing ledger is always spent first, transparently to the agent (to users say "refresh" / "this month", never "expire") |
 
 > In a team scope this returns the owner's balance (shared by members); `daily_spent`/`daily_limit` are computed for the calling member's own daily allowance.
 
 #### `GET /api/billing/plans` — plan catalog
 
-No params. Returns `[{id, name, price_usd, credits, seconds, videos, unit_price_usd, purchasable}]` (starter/daily/pro; `purchasable=false` = payments not configured).
+No params. Returns `[{id, name, price_usd, credits, seconds, videos, unit_price_usd, purchasable}]` (solo/starter/daily/pro; `purchasable=false` = payments not configured). **Introducing a plan is a pre-payment money moment: lead with dollars** (`price_usd`/mo, e.g. "$39/mo"), then what it buys as credits + a videos range ("5,400 credits · 3-9 videos a month" — range small number = default engine, big number = the cheapest engine (similar resolution, lower rate); engine names only in rate lists, never the sentence subject); `credits` is RAW INTERNAL (÷ 100 for the wallet number), and never re-price credits in dollars.
 
 #### `GET /api/billing/subscription` — current plan
 
 No params. Returns `{plan_id?, plan_name?, status?, scheduled_plan_id?, cancel_at_period_end, current_period_start?, current_period_end?, stripe_enabled, video_credits_per_second}`. `plan_id=null` = unsubscribed. **Buying/upgrading/downgrading is a web action** (Settings → Billing); the agent only guides, never orders.
 
-> Also available: `GET /api/usage/daily-budget` (`allowed`/`spent_credits`/`limit_credits`/`remaining_credits`, the simple pre-submit gate), `GET /api/usage/summary` (usage aggregated by period, `total_credits`/`total_cost_usd`; `groups` is empty for customers), `GET /api/usage/history` (daily history with `user_email`; non-admins can only query themselves). Use summary for "how much have I used," credits for "can I generate again." **Always report usage/spend to customers in seconds** — the unit the app's meter shows — `seconds ≈ total_credits ÷ video_credits_per_second` (from `GET /api/billing/subscription`); never surface raw credits / USD (matches the seconds-first billing UI + brand voice).
+> Also available: `GET /api/usage/daily-budget` (`allowed`/`spent_credits`/`limit_credits`/`remaining_credits`, the simple pre-submit gate), `GET /api/usage/summary` (usage aggregated by period, `total_credits`/`total_cost_usd`; `groups` is empty for customers), `GET /api/usage/history` (daily history with `user_email`; non-admins can only query themselves). Use summary for "how much have I used," credits for "can I generate again." **Always report usage/spend to customers in display credits** — the unit the app's wallet shows — `display_credits = internal_credits ÷ 100`; never surface raw internal credits / USD. Real video DURATION stays in seconds (it is time, not balance). This matches the app's credits wallet + brand voice.
 
 ---
 
@@ -834,7 +836,7 @@ queued → running → completed
 | HTTP / error | Scenario | Handling |
 |-------------|------|------|
 | `401` unauthenticated | vee_session expired/missing | Re-run the device flow (`POST /api/skill/device/authorize` → user approves → poll `.../token`); see **Auth** |
-| `402` insufficient_credits | not enough to submit | Show the shortfall in seconds (≈ credits ÷ video_credits_per_second) + relay `topup_url` verbatim, **no retry** |
+| `402` insufficient_credits | not enough to submit | Show the shortfall in display credits (internal ÷ 100) + relay `topup_url` verbatim, **no retry** |
 | `400` — not exactly one source | missing or multiple sources | Ensure exactly one of `video`/`tiktok_url`/`formula_id` |
 | `400` — TikTok link is not a specific video | `tiktok_url` is a profile page or other non-video link (path lacks `/video/`) | Ask the user for the link of **one video** (contains `/video/`) or a `vm.`/`vt.` share short link |
 | `400` — required missing | name/description etc. not sent | Fill per the field tables; don't paper over with empty strings |
@@ -874,7 +876,7 @@ Proactively flag anomalies (an undocumented error code / an internal field that 
 3. **Product images improve quality**: when placing a product, at least 1 clean product image is recommended.
 4. **content_anchor matters**: a good creative direction noticeably lifts quality (but it's optional).
 5. **More data, better recommendations**: the richer the library and the more `used_count` / `tags`, the sharper the picks.
-6. **Download URL**: `asset.file_url` is relative; full URL = `${BASE_URL}${file_url}`.
+6. **Download URL**: `asset.file_url` is relative; full URL = `${BASE_URL}${file_url}`. Send the `vee_session` cookie and follow redirects (`curl -L -b`); do not guess `/api/assets/{id}/download` — that endpoint does not exist (404).
 
 ---
 
@@ -904,7 +906,7 @@ Filenames are case-sensitive: `SKILL.md` (this file), `HEARTBEAT.md` (version-ch
 Check each item in order; on any failure, return to the previous step and reinstall:
 
 1. **Files present** — `ls "${SKILLS_ROOT}/Riffkit/"` includes `SKILL.md` and `HEARTBEAT.md`, exact case.
-2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version` (currently: `1.2.3`).
+2. **Version matches** — this file's frontmatter `version` equals `curl -s https://riffkit.ai/SKILL.json | jq -r .version`.
 3. **Network reachable** — `curl -sS -o /dev/null -w "%{http_code}" https://riffkit.ai/api/auth/me` returns `401` (no cookie is normal).
 4. **Auth reachable** — the one-click sign-in is live: `curl -s -X POST https://riffkit.ai/api/skill/device/authorize` returns JSON with a `user_code`.
 
