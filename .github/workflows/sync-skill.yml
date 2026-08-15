@@ -23,13 +23,23 @@ jobs:
           curl -fsSL https://riffkit.ai/SKILL.md     -o SKILL.md
           curl -fsSL https://riffkit.ai/HEARTBEAT.md -o HEARTBEAT.md
           curl -fsSL https://riffkit.ai/SKILL.json   -o SKILL.json
+          # Second copy under riffkit/ so the REPO ITSELF is a valid skill root.
+          # dsh (and every other harness reading ~/.agents/skills) discovers
+          # `<name>/SKILL.md` and takes the skill's name from that directory — it
+          # does no nested discovery. With SKILL.md only at the repo root, cloning
+          # or copying this repo into a skill root yields `skill/SKILL.md`, i.e. a
+          # skill called "skill". The root copy stays (raw-URL installs and the
+          # README point at it); this adds the layout that `git clone` + copy needs.
+          mkdir -p riffkit
+          cp SKILL.md riffkit/SKILL.md
+          cp HEARTBEAT.md riffkit/HEARTBEAT.md
       - name: Commit if changed
         run: |
           if ! git diff --quiet; then
             git config user.name "riffkit-bot"
             git config user.email "bot@riffkit.ai"
-            git add SKILL.md HEARTBEAT.md SKILL.json
-            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai"
+            git add SKILL.md HEARTBEAT.md SKILL.json riffkit/
+            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai (+ riffkit/ skill-root copy)"
             git push
           else
             echo "Already up to date."
