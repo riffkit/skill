@@ -68,7 +68,10 @@ https://github.com/user-attachments/assets/e2fb65c3-5123-409f-bdce-3f64b4a66f48
 | Where | How |
 | --- | --- |
 | **Claude Code · Codex · Cursor · OpenClaw** — any agent that can read a URL and make HTTP calls | `Read https://riffkit.ai/SKILL.md and follow the instructions` |
+| **DeepSeek Harness (DSH)** — reads `SKILL.md` natively | `mkdir -p ~/.agents/skills/riffkit && curl -sSL https://riffkit.ai/SKILL.md -o ~/.agents/skills/riffkit/SKILL.md` |
 | **Browser** — no agent needed | Upload a clip or paste a TikTok link at [riffkit.ai](https://riffkit.ai) |
+
+`~/.agents/skills` is the shared skill root several harnesses scan, so the DSH line above also registers Riffkit anywhere else that reads it. Verified against DSH's own `dsh-skill-filesystem` provider: discovered, frontmatter parsed, full body loaded, no changes to the skill required.
 
 No MCP server to run, no local models — the skill is a thin layer over Riffkit's hosted backend.
 
