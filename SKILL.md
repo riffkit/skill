@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.3.3"
-updated_at: "2026-08-16"
+version: "1.4.0"
+updated_at: "2026-08-23"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -233,6 +233,20 @@ All three variables must be specific to an actionable level — anything abstrac
 | `on_camera` | Product **visual** feature × the template's on-screen action ("the package-scan gesture × the reveal beat's curiosity→surprise") |
 | `off_camera` | Product **function/benefit** × the template's voiceover/subtitle ("the pain the app solves × the hook's resonance → download urge") |
 | `no_product` | The account's specific angle × the template's emotion formula → the resonance you want (**the anchor matters most here** — with no product, it's the only thematic anchor) |
+
+### How to write it (craft)
+
+The engine already mirrors the source. Your anchor is a **delta**, not a brief.
+
+1. **Say only what should differ from the source.** Everything you don't mention is inherited. If the only thing that changes is who is on camera, the correct anchor is empty — writing more pulls the render away from a formula that already works.
+
+2. **Locate every change.** A change stated as a concept loses to the source; the same change stated with a place — which beat, which moment, what happens right before and after — is the one that lands.
+
+3. **Length tracks how far you're departing, not how much you care.** A big departure needs detail; a small one needs a line. "This video matters to me" is never a reason to write more.
+
+4. **Keep separate axes separate.** How it's shot (lighting, grain, camera feel) and what's in it (wardrobe, props, setting) are different axes. Collapse them into one sentence and one will drag the other — asking for an unpolished look often flattens the subject too.
+
+**Building your own guard list.** When a render comes back with something you never asked for, that is the engine's default showing. Add an explicit "not X" next time. Experienced users accumulate a short list of these and paste it into every anchor — it is the cheapest thing they do.
 
 **Place a product image on camera by name (on_camera only)**: write the product image's `name` directly in `content_anchor` text and the engine matches that name and places the image on screen. The image must be named (an unnamed image can't be referenced). Example: writing in `content_anchor` "use the ingredient-scan screen shot to reveal the hidden additives" puts the image named "ingredient-scan screen" into the matching shot. (This is plain name matching, not an @-syntax — the @-mention is only a web-UI textarea helper that inserts the name for you; agents write the name themselves.)
 
