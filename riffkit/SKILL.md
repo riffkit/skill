@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.4.0"
-updated_at: "2026-08-23"
+version: "1.5.1"
+updated_at: "2026-09-13"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -67,8 +67,9 @@ This skill makes short AI videos in exactly two modes: **riff videos** (analyze 
 | `GET /api/formulas/{id}` | A template's `extraction_summary` (what was extracted) |
 | `POST /api/formulas/analyze` | **Subscribers only** — analyze a new source into your own template *without* generating (build a library) |
 | `POST /api/formulas/{id}/refresh-analysis` | Re-analyze a template whose analysis is stale |
-| `GET /api/characters` | Digital characters (optional binding) |
-| `GET /api/products` · `POST /api/products` · `POST /api/products/{id}/images` | Products + product images (optional placement) |
+| `GET /api/characters` | Digital characters (optional binding) — creation is capped, see "Creation caps" |
+| `GET /api/products` · `POST /api/products` · `POST /api/products/{id}/images` | Products + product images (optional placement) — creation is capped |
+| `GET /api/settings` | Deployment capabilities + **this account's `creation_limits`** (pre-check before creating a character/product/avatar) |
 | `GET /api/languages` | Video language candidates |
 | `GET /api/tasks/batch/{id}` · `GET /api/tasks/{id}` | Progress polling |
 | `GET /api/tasks` · `GET /api/tasks/stats` | List / count tasks |
@@ -377,8 +378,8 @@ No body, no auth. **Response:**
 | `product_id` | string | `""` | Empty = no product placement (`no_product` mode) |
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
-| `video_backend` | string | `seedance` | `seedance` (Seedance 2.0, default) / `seedance25` (Seedance 2.5, premium) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
-| `resolution` | string | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) display rate — 720p 100 credits/s · 1080p 250/s · seedance25 720p 150/s · H3 768P 40/s · H3 2K 80/s. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
+| `video_backend` | string | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `minimax` (MiniMax H3). Picks the render engine. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one** — so **omit this param unless the user has a plan**. A free-tier caller that passes `seedance` / `seedance25` gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry — resubmit on `minimax` if the user just wants the video. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
+| `resolution` | string | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) display rate — 720p 100 credits/s · 1080p 250/s · seedance25 720p 150/s · H3 768P 40/s · H3 2K 80/s. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry also carries `locked: true` when THIS account may not submit on it (free tier → the Seedance engines); offer only unlocked engines instead of discovering the 403 |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
 | `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each metered as its own video at the **reframe** rate — on MiniMax H3 that is **80/s**, 2× that engine's 40/s render rate, still under 720p's 100/s; see Billing); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
@@ -411,8 +412,8 @@ No body, no auth. **Response:**
 | `product_visibility` | string | | `on_camera` | Only `on_camera`/`off_camera`; `no_product` is derived from `product_id=null`, never passed directly |
 | `content_anchor` | string | | `""` | ≤5000 chars |
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
-| `video_backend` | string | | `seedance` | `seedance` (Seedance 2.0, default) / `seedance25` (Seedance 2.5, premium) / `minimax`. Picks the render engine. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
-| `resolution` | string | | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, quoted against the 720p base: 1080p ×2.5, seedance25 720p ×1.5, 768P ×0.4, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` |
+| `video_backend` | string | | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `minimax` (MiniMax H3). Picks the render engine. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one** — so **omit this param unless the user has a plan**. A free-tier caller that passes `seedance` / `seedance25` gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry — resubmit on `minimax` if the user just wants the video. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
+| `resolution` | string | | engine base | Engine-scoped: `720p` / `1080p` for `seedance`, `720p` only for `seedance25`, `768P` / `2K` for `minimax`. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, quoted against the 720p base: 1080p ×2.5, seedance25 720p ×1.5, 768P ×0.4, 2K ×0.8. `1080p` on a Fast-tier deployment → 400 (Fast has no 1080p). Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry also carries `locked: true` when THIS account may not submit on it (free tier → the Seedance engines); offer only unlocked engines instead of discovering the 403 |
 | `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character; each extra ratio is metered at the reframe rate — on MiniMax H3 that is 80/s); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
@@ -440,7 +441,7 @@ The second generation mode: no source video, no template — the **creative dire
 | `duration_mode` | string | no | `smart` (default: AI picks the length by content, capped at 45s AND at what the balance affords) / `fixed` |
 | `duration_seconds` | int | with fixed | 4-45; required when `duration_mode=fixed` |
 | `language` | string | no | Default `en`; same whitelist as riffs |
-| `video_backend` | string | no | `seedance` (Seedance 2.0, default) / `seedance25` (Seedance 2.5) / `minimax`; 400 if not configured on the deployment |
+| `video_backend` | string | no | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5) / `minimax` (MiniMax H3); 400 if not configured on the deployment. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one** — so **omit this param unless the user has a plan**. A free-tier caller that passes `seedance` / `seedance25` gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry — resubmit on `minimax` if the user just wants the video. |
 | `resolution` | string | no | Engine-scoped — `720p`/`1080p` (seedance), `720p` (seedance25) or `768P`/`2K` (minimax). Omit for the engine base tier; a value the picked engine doesn't sell is a 400. Same rate rules as riffs |
 | `video_ratio` | string | no | Single ratio, default `9:16` (creation has no reframe fan-out at submit; use backfill later — currently riff-only) |
 
@@ -501,11 +502,30 @@ Turn a **new** source into the caller's own template **without generating a vide
 
 **When to use:** the user explicitly wants to *bank a template for later* from a new source without spending on a video. For the normal "make me a video" ask, use `POST /api/riffs` — it analyzes and generates in one shot.
 
-**`403` for free users (guide them to pay):** a caller without an active subscription gets `403` with a structured detail — `{"error": "subscription_required", "message": <localized sentence>, "subscribe_url": "<server-issued billing URL>"}` (same shape family as the `402` `insufficient_credits` payload). On this 403: relay `message`, hand over `subscribe_url` **verbatim** (server-issued — never hardcode a billing URL), and note the alternative that works without a subscription — `POST /api/riffs` (analyze **and** generate in one shot, paid per generated video). Do not retry the analyze call.
+**`403` for free users (guide them to pay):** a caller without an active subscription gets `403` with a structured detail — `{"error": "subscription_required", "message": <localized sentence>, "subscribe_url": "<server-issued billing URL>"}` (same shape family as the `402` `insufficient_credits` payload). **The same payload is the free-tier engine lock**: submitting `video_backend=seedance` / `seedance25` on a wallet that has never paid returns this exact detail (handle it identically — there the working alternative is simply rendering on `minimax`). On this 403: relay `message`, hand over `subscribe_url` **verbatim** (server-issued — never hardcode a billing URL), and note the alternative that works without a subscription — `POST /api/riffs` (analyze **and** generate in one shot, paid per generated video). Do not retry the analyze call.
 
 #### `POST /api/formulas/{formula_id}/refresh-analysis`
 
 When a template's analysis is stale (`analysis_prompt_is_latest=false`), re-run Stage A under the current prompt version. **Response:** `task_id` + `"queued"`; poll `GET /api/tasks/{task_id}`. It does not accept `user_hint` — to change the hint, riff a new source to build a fresh template.
+
+---
+
+### Creation caps (characters / products / avatars)
+
+How many characters, products, and avatars an account may own depends on whether the wallet has ever paid. **The numbers are runtime-tunable — never hardcode them; read them from `GET /api/settings` → `creation_limits` and pre-check before staging a new character/product/avatar.**
+
+| Tier | Characters | Products | Avatars per character |
+|---|---|---|---|
+| **Free** (wallet never purchased / subscribed / comped) | 1 | 1 | 1 — the one uploaded at creation; no extra uploads |
+| **Paid** | 50 | 50 | 10 |
+| Staff | unlimited | unlimited | unlimited |
+
+`creation_limits` = `{tier: "free" \| "paid" \| "staff", characters, products, avatars_per_character}`, each count an integer or `null` (= unlimited). The caps are **per scope** (a team's members share the owner's allowance), and they are re-derived server-side on every create, so the pre-check only saves a round-trip — the errors below still have to be handled.
+
+The capped writes are `POST /api/characters`, `POST /api/products`, and `POST /api/characters/{character_id}/avatars`. Deleting an unused character / product / avatar version frees a slot immediately (a character's only avatar may be deleted even while active — the character then has no avatar until a new upload is approved). Creates are also throttled per workspace (`429` past roughly 20 characters / 30 products / 20 avatar uploads per hour) — a person never reaches that; do not loop.
+
+- **Free tier over a cap → `403`** with the **same** `{"error": "subscription_required", "message", "subscribe_url"}` detail as the analyze and engine paywalls — handle it identically (see the `403` paragraph under `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` **verbatim**, do not retry.
+- **Paid tier over a cap → `400`** `{"error": "limit_reached", "kind": "character" \| "product" \| "avatar", "limit": <N>, "message": <localized sentence>}`. This is a stop, not an upsell: relay `message` and tell the user to delete an unused one (or reuse an existing character/product) — **do not** pitch a plan and do not retry.
 
 ---
 
@@ -529,7 +549,7 @@ When a template's analysis is stale (`analysis_prompt_is_latest=false`), re-run 
 | `active_avatar_id` | string? | The in-use avatar row id |
 | `stats` | object? | Asset stats (`total_assets` / `by_type`) |
 
-> Choose a character by `persona` feel + `gender` / `age_range` + `has_any_active_avatar`. Creating/editing characters (needs reference_image + persona) is left to the Settings UI; Riffkit doesn't proactively guide creation. There is no `description` field (account identity lives entirely in `persona`).
+> Choose a character by `persona` feel + `gender` / `age_range` + `has_any_active_avatar`. Creating/editing characters (needs reference_image + persona) is left to the Settings UI; Riffkit doesn't proactively guide creation. If the user does create one there, remember it's capped — free tier 1 character with 1 avatar, paid 50 with 10 avatars each (see "Creation caps" above). There is no `description` field (account identity lives entirely in `persona`).
 
 `CharacterOut` also carries `voice_sample` (string?, web path; null = none) — a 4-15s clean-speech clip the engine locks as the character's voice on dialogue segments (riffs AND creations, automatic once set).
 
@@ -569,6 +589,8 @@ Clears the sample (generation falls back to the default voice). **Response:** up
 #### `POST /api/products`
 
 **Body (`ProductUpdateRequest`):** `name` (✓), `description` (✓), `target_audience`. **Response:** `ProductOut`.
+
+> **Capped** — free tier 1 product, paid 50 (see "Creation caps" above). Pre-check `GET /api/settings` → `creation_limits.products` against `GET /api/products` before staging a new product; over the cap you get the free-tier `403 subscription_required` or the paid-tier `400 limit_reached`.
 
 #### `POST /api/products/{product_id}/images`
 
@@ -739,7 +761,7 @@ No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 720p **100 credits/s** (internal 10,000) / 1080p **250/s** (25,000), Seedance 2.5 720p **150/s** (15,000 — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P **40/s** (internal 4,000 — launch pricing) / 2K **80/s** (8,000). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** (varies by engine: MiniMax H3 40/s → 600; 720p 100/s → 1,500 = 150,000 internal). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 720p **100 credits/s** (internal 10,000) / 1080p **250/s** (25,000), Seedance 2.5 720p **150/s** (15,000 — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P **40/s** (internal 4,000 — launch pricing) / 2K **80/s** (8,000). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** (varies by engine: MiniMax H3 40/s → 600; 720p 100/s → 1,500 = 150,000 internal). **The signup trial is exactly that: one free 15-second video on MiniMax H3 (600 display credits)** — which is why a free-tier wallet renders on H3 only (Seedance engines need a plan; see `video_backend`). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
