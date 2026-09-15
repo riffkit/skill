@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.5.1"
-updated_at: "2026-09-13"
+version: "1.5.4"
+updated_at: "2026-09-14"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -246,6 +246,8 @@ The engine already mirrors the source. Your anchor is a **delta**, not a brief.
 3. **Length tracks how far you're departing, not how much you care.** A big departure needs detail; a small one needs a line. "This video matters to me" is never a reason to write more.
 
 4. **Keep separate axes separate.** How it's shot (lighting, grain, camera feel) and what's in it (wardrobe, props, setting) are different axes. Collapse them into one sentence and one will drag the other — asking for an unpolished look often flattens the subject too.
+
+5. **Quote what must stay word-for-word.** Text in double quotes — a slogan, a line to be spoken exactly, a caption that must read a certain way — is kept byte-for-byte and never translated, even when the video's `language` differs (`she says "Don't copy. Riff."` keeps that English line inside a Japanese video, and a caption bound to it reads the same). Everything unquoted is direction: the engine realizes it in the target language and fits numbers and details to the script it writes.
 
 **Building your own guard list.** When a render comes back with something you never asked for, that is the engine's default showing. Add an explicit "not X" next time. Experienced users accumulate a short list of these and paste it into every anchor — it is the cheapest thing they do.
 
@@ -729,7 +731,9 @@ Fix a finished video's subtitles without regenerating it: retime a line, move ca
 | `time_range` | ✓ | `[start_sec, end_sec]` — retime a line here |
 | `params.text` | ✓ | The on-screen text |
 | `params.position_x_ratio` / `params.position_y_ratio` | ✓ | Normalized 0-1 position (0.5/0.8 ≈ bottom-center); same value works across resolutions |
-| `params.color` | ✓ | `#RRGGBB` |
+| `params.color` | ✓ | `#RRGGBB` or a basic CSS colour name (`gold`, `red`, …); stored as hex |
+| `params.highlight_words` | ✓ | Words / phrases to accent inside this line — each must occur verbatim (same case) in `params.text`. Keep them in sync when you rewrite the text: an entry that no longer occurs is dropped at burn |
+| `params.highlight_color` | ✓ | Accent colour for `highlight_words` — `#RRGGBB` or a name; one accent per line (omit → gold) |
 | `params.approximate_size` | ✓ | One of `very_small` / `small` / `medium` / `large` / `very_large` |
 | `semantic` / `attributes` | keep | Pass through unchanged |
 
@@ -761,7 +765,7 @@ No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 720p **100 credits/s** (internal 10,000) / 1080p **250/s** (25,000), Seedance 2.5 720p **150/s** (15,000 — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P **40/s** (internal 4,000 — launch pricing) / 2K **80/s** (8,000). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** (varies by engine: MiniMax H3 40/s → 600; 720p 100/s → 1,500 = 150,000 internal). **The signup trial is exactly that: one free 15-second video on MiniMax H3 (600 display credits)** — which is why a free-tier wallet renders on H3 only (Seedance engines need a plan; see `video_backend`). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 720p **100 credits/s** (internal 10,000) / 1080p **250/s** (25,000), Seedance 2.5 720p **150/s** (15,000 — a premium sibling engine, keyed `seedance25:720p` in the rate map), MiniMax H3 768P **40/s** (internal 4,000 — launch pricing) / 2K **80/s** (8,000). The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** (varies by engine: MiniMax H3 40/s → 600; 720p 100/s → 1,500 = 150,000 internal). **The signup trial is exactly that: one free 15-second video on MiniMax H3 (600 display credits)** — which is why a free-tier wallet renders on H3 only (Seedance engines need a plan; see `video_backend`). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. **Plan prices are in USD and exclude tax** — where the customer's region is taxable, Stripe adds it at checkout (business customers can enter a VAT/tax ID there for reverse charge), so when you quote a plan price, say "plus any applicable tax". Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
