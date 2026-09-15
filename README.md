@@ -63,6 +63,18 @@ https://github.com/user-attachments/assets/e2fb65c3-5123-409f-bdce-3f64b4a66f48
 
 </details>
 
+## Skills in this repo
+
+Same skill, three names — so an agent finds it by the job you're asking for. All three share one body; only the name and description differ.
+
+| Skill | What it answers to | Source |
+| --- | --- | --- |
+| **`riffkit`** — [`SKILL.md`](SKILL.md) | The full product, under its own name — riff videos and original creation videos. | Canonical; mirrored daily from [riffkit.ai/SKILL.md](https://riffkit.ai/SKILL.md). |
+| **`ugc-ad-creative`** — [`ugc-ad-creative/SKILL.md`](ugc-ad-creative/SKILL.md) | *"Make a UGC ad for my product."* | **Generated** — don't edit; change [`variants.json`](variants.json) (name/description) or the canonical skill (body). |
+| **`riff-viral-tiktok`** — [`riff-viral-tiktok/SKILL.md`](riff-viral-tiktok/SKILL.md) | *"Turn this winning TikTok into mine."* | **Generated** — same rule. |
+
+The two variants are rendered by [`scripts/render_variants.py`](scripts/render_variants.py) on every sync run, so they can never drift from the canonical body. Their one-click sign-in sends `client=<skill name>`, used only for attribution.
+
 ## Works with
 
 | Where | How |
