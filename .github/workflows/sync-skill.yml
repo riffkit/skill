@@ -33,21 +33,16 @@ jobs:
           mkdir -p riffkit
           cp SKILL.md riffkit/SKILL.md
           cp HEARTBEAT.md riffkit/HEARTBEAT.md
-      - name: Render need-named variants
-        # One body, several names: each entry in variants.json becomes
-        # <name>/SKILL.md from the SKILL.md just pulled above. Edit
-        # variants.json (or the canonical skill) — never a generated file.
-        run: python3 scripts/render_variants.py
       - name: Commit if changed
         run: |
           git config user.name "riffkit-bot"
           git config user.email "bot@riffkit.ai"
-          # -A so newly rendered variant dirs (untracked) and pruned ones both
-          # register; the staged diff is what decides whether there's anything
-          # to push (plain `git diff` is blind to untracked files).
+          # -A so files that are new rather than modified register too; the
+          # staged diff is what decides whether there's anything to push
+          # (plain `git diff` is blind to untracked files).
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai (+ riffkit/ skill-root copy) (+ variants from variants.json)"
+            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai (+ riffkit/ skill-root copy)"
             git push
           else
             echo "Already up to date."
