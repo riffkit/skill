@@ -75,6 +75,13 @@ Same skill, three names — so an agent finds it by the job you're asking for. A
 
 The two variants are rendered by [`scripts/render_variants.py`](scripts/render_variants.py) on every sync run, so they can never drift from the canonical body. Their one-click sign-in sends `client=<skill name>`, used only for attribution.
 
+Installing with the [`skills`](https://skills.sh) CLI — pass `--full-depth`, which is what makes it look past the repo-root `SKILL.md` and see all three:
+
+```
+npx skills add riffkit/skill --full-depth --list      # see all three
+npx skills add riffkit/skill --full-depth -s ugc-ad-creative
+```
+
 ## Works with
 
 | Where | How |
