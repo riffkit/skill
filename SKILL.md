@@ -308,7 +308,7 @@ The API uses a cookie-based session (`vee_session`). **Never ask for a password 
 
 #### `POST /api/skill/device/authorize` — start one-click sign-in
 
-No body, no auth. **Response:**
+No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) — labels which skill started the sign-in; echoed as `skill` in `verification_uri_complete`; invalid values are ignored. **Response:**
 
 | Field | Type | Notes |
 |------|------|------|
