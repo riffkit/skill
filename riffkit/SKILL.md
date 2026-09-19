@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.5.4"
-updated_at: "2026-09-14"
+version: "1.6.1"
+updated_at: "2026-09-19"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -791,11 +791,30 @@ On 402: **no retry, no silent failure** — present the shortfall in **display c
 
 #### `GET /api/billing/plans` — plan catalog
 
-No params. Returns `[{id, name, price_usd, credits, seconds, videos, unit_price_usd, purchasable}]` (solo/starter/daily/pro; `purchasable=false` = payments not configured). **Introducing a plan is a pre-payment money moment: lead with dollars** (`price_usd`/mo, e.g. "$39/mo"), then what it buys as credits + a videos range ("5,400 credits · 3-9 videos a month" — range small number = default engine, big number = the cheapest engine (similar resolution, lower rate); engine names only in rate lists, never the sentence subject); `credits` is RAW INTERNAL (÷ 100 for the wallet number), and never re-price credits in dollars.
+No params. Returns `[{id, tier, interval, name, price_usd, monthly_price_usd, credits, videos, purchasable}]` (`purchasable=false` = payments not configured). Four tiers, each sold **monthly or yearly**. The yearly entry of a tier carries the same monthly credit allotment at a lower per-month price:
+
+| tier | monthly id | monthly | yearly id | yearly, per month | billed yearly | saves |
+|---|---|---|---|---|---|---|
+| solo | `solo` | $39/mo | `solo_year` | $29/mo | $348/yr | $120 |
+| starter | `starter` | $99/mo | `starter_year` | $79/mo | $948/yr | $240 |
+| daily | `daily` | $279/mo | `daily_year` | $229/mo | $2,748/yr | $600 |
+| pro | `pro` | $799/mo | `pro_year` | $649/mo | $7,788/yr | $1,800 |
+
+Those ids are what the web checkout and the change-plan flow take; a deployment with no yearly price configured still returns the `_year` entries, with `purchasable: false`. Never offer a plan whose `purchasable` is false. **Introducing a plan is a pre-payment money moment: lead with dollars** (`monthly_price_usd`/mo, e.g. "$79/mo, billed $948 yearly"), then what it buys as credits + a videos range ("5,400 credits · 3-9 videos a month"; in that range the small number = default engine, the big number = the cheapest engine (similar resolution, lower rate); engine names only in rate lists, never the sentence subject); `credits` is RAW INTERNAL (÷ 100 for the wallet number), and never re-price credits in dollars.
+
+**Yearly mechanics an agent must relay correctly:** a yearly plan bills once but **credits arrive monthly, not all at once**. It is the same allotment as that tier's monthly plan, refreshed at each monthly mark of the year and not rolled over. So yearly buys a lower price, not a bigger pile. **Yearly is non-refundable.** Switching: moving **up a tier while staying on the same billing interval takes effect immediately** (prorated). **Everything else takes effect at the end of the current period**: switching between monthly and yearly in either direction, moving down a tier, or canceling. Until then the current plan keeps running.
 
 #### `GET /api/billing/subscription` — current plan
 
-No params. Returns `{plan_id?, plan_name?, status?, scheduled_plan_id?, cancel_at_period_end, current_period_start?, current_period_end?, stripe_enabled, video_credits_per_second}`. `plan_id=null` = unsubscribed. **Buying/upgrading/downgrading is a web action** (Settings → Billing); the agent only guides, never orders.
+No params. Returns `{plan_id?, plan_name?, status?, scheduled_plan_id?, cancel_at_period_end, current_period_start?, current_period_end?, stripe_enabled, video_credits_per_second}`. `plan_id=null` = unsubscribed; `plan_id` / `scheduled_plan_id` may be a yearly id (`solo_year` … `pro_year`), and on a yearly plan `current_period_end` is the end of the paid YEAR (the monthly credit refresh happens inside it). **Buying/upgrading/downgrading is a web action** (Settings → Billing); the agent only guides, never orders.
+
+**Pending change fields.** `scheduled_plan_id` non-null = a change already takes effect at `current_period_end` (a tier-down, or a monthly↔yearly switch; both are period-end changes); until then the current plan keeps running and its credits keep refreshing. `cancel_at_period_end: true` = the plan ends at `current_period_end` and is not renewed. Both are states to *report*, not to act on: say what changes and when, using `current_period_end`.
+
+#### `POST /api/billing/cancel` · `POST /api/billing/resume` — end or keep the plan
+
+No body. **Payer-only** (in a team scope, only the owner who pays; anyone else gets 403). `cancel` sets the plan to end at `current_period_end`: nothing is charged again, and the plan and its credits keep running until then. A pending **monthly↔yearly switch is dropped** by the cancel, so `scheduled_plan_id` comes back null; a pending **same-interval tier-down stays scheduled** and `scheduled_plan_id` keeps its value, but it never bills, because the subscription ends at `current_period_end`. Either way the plan simply ends on the plan the user is on today. Yearly is non-refundable: canceling a yearly plan stops the renewal, it does not refund the year or stop the remaining monthly credit refreshes. `resume` undoes a cancel before the period ends, putting the plan back on renewal. Both return the same shape as `GET /api/billing/subscription` (the subscription re-read after the change), so read `cancel_at_period_end` / `current_period_end` / `scheduled_plan_id` back from the response rather than assuming (a non-null `scheduled_plan_id` next to `cancel_at_period_end: true` is the tier-down case above, not a failed cancel).
+
+Usage: these are the only billing actions an agent may take, and only on an explicit, unambiguous instruction ("cancel my plan"). **Confirm first, quote the date it ends from `current_period_end`, and never cancel as a side effect of some other request.** Upgrades, downgrades and checkout stay web-only.
 
 > Also available: `GET /api/usage/daily-budget` (`allowed`/`spent_credits`/`limit_credits`/`remaining_credits`, the simple pre-submit gate), `GET /api/usage/summary` (usage aggregated by period, `total_credits`/`total_cost_usd`; `groups` is empty for customers), `GET /api/usage/history` (daily history with `user_email`; non-admins can only query themselves). Use summary for "how much have I used," credits for "can I generate again." **Always report usage/spend to customers in display credits** — the unit the app's wallet shows — `display_credits = internal_credits ÷ 100`; never surface raw internal credits / USD. Real video DURATION stays in seconds (it is time, not balance). This matches the app's credits wallet + brand voice.
 
