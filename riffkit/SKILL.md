@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.7.2"
-updated_at: "2026-09-19"
+version: "1.8.0"
+updated_at: "2026-09-21"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -12,13 +12,15 @@ description: "Riff winning short videos — give one source (a TikTok link, an u
 
 **Core stance: you riff the formula, not the video.** Give one winning source; the backend analyzes the emotion formula that hijacks attention and migrates that formula onto your own content. The footage can be completely different as long as the viewer travels the same psychological path.
 
+**Or keep the footage: Swap mode (`mode=swap`).** When the user wants the original's exact shots rather than its formula ("put me in this video", "same video, my character"), a swap re-shoots the source window by window on its own clock: camera, cuts, framing, action and timing stay; what changes is what the user names: a digital character in place of the person (no character = the original person stays), a product, and `content_anchor` for anything else (setting, outfit, a line's wording). A swap must change at least one thing. Adapt (the default) keeps the formula and changes the story; Swap keeps the shots and changes what's in them.
+
 **One screen, one action: source (required) → optional settings → submit.** The real product is a single page and a single call (`POST /api/riffs`). Every setting other than the source has a sensible default — character defaults to **Auto (no digital human; the AI generates the on-camera person)** and product defaults to **none**. When the user doesn't care, the agent applies defaults silently instead of dragging them through a multi-step wizard.
 
 **The agent's highest-value contribution is `content_anchor` (the creative direction)** — the one degree of strategic freedom: which of the product's N selling points to angle on, which surface to fill into the template's emotion mechanism. It is an **optional collaboration, not a blocking hard-stop.** See `## content_anchor drafting framework` below.
 
 ## Skill scope
 
-This skill makes short AI videos in exactly two modes: **riff videos** (analyze a source video's emotion formula and regenerate it as your own) and **creation videos** (author an original ad video from a written creative direction — no source video; `POST /api/creation/batch`). That is the entire product surface. If a user asks for something outside this — a different content format, or a feature this product doesn't have — say plainly that this product only makes riff videos; don't call unrelated APIs and don't steer them elsewhere.
+This skill makes short AI videos in exactly three modes: **adapt riffs** (the default: analyze a source video's emotion formula and regenerate it as your own story), **swap riffs** (`POST /api/riffs` with `mode=swap`: keep the source's shots, cuts and timing, and put your character, product or setting into them) and **creation videos** (author an original ad video from a written creative direction — no source video; `POST /api/creation/batch`). That is the entire product surface. If a user asks for something outside this — a different content format, or a feature this product doesn't have — say plainly that this product only makes riff (adapt / swap) and creation videos; don't call unrelated APIs and don't steer them elsewhere.
 
 **No staff/admin features are exposed.** This skill covers only endpoints a normal authenticated user can call. Building platform templates by analyzing new sources, publishing/unpublishing platform templates, cross-scope task search, manually granting/clawing back credits — all staff-only. This document never lists them and the agent never calls them.
 
@@ -34,16 +36,22 @@ This skill makes short AI videos in exactly two modes: **riff videos** (analyze 
 
 ```
 [Flow]
+  0. Mode: adapt (default: keep the formula, new story) / swap (mode=swap: keep the shots, swap who's in them)
+            ↓
   1. Pick the source (exactly one, required)
        ├── analyzed template  formula_id        →  skips analysis, generates now (fastest)
        ├── TikTok link        tiktok_url        →  backend downloads + analyzes + generates
-       └── uploaded video     video (≤100MB, ≤ render cap) →  backend analyzes + generates
+       ├── uploaded video     video (≤100MB, ≤ render cap) →  backend analyzes + generates
+       └── own finished video source_asset_id   →  SWAP ONLY: one of your finished riff/creation videos
             ↓
   2. Optional settings (all defaulted; agent may suggest, never forces)
        character     default Auto (AI-generated person); may suggest a fitting character on account intent
+                     (swap: optional; no character = the original person stays. A swap must still change
+                      something: a character, a product with images, or a written content_anchor)
        product       default none (no_product); attach an existing/new product to place one
        visibility    default on_camera; only meaningful when a product is attached
        language      default en; candidates from GET /api/languages (currently en / es / pt / id / de / fr / it / ja / zh-CN)
+                     (swap ignores language / visibility / ratios: the source decides them)
        content_anchor optional creative direction; agent may proactively draft one for review
        user_hint     optional hook hint; only used for a NEW source (ignored for a template)
             ↓
@@ -89,7 +97,7 @@ Full params and responses in "API reference" below.
 
 Do NOT:
 - **Auto-submit** a task just because the user said "riff this" (deciding the source + config is fine; the submit must wait for a go-ahead)
-- Treat "pick a character / pick a product" as an unskippable step — **character defaults to Auto, product defaults to none**; use the defaults when the user hasn't asked for either
+- Treat "pick a character / pick a product" as an unskippable step — **character defaults to Auto, product defaults to none**; use the defaults when the user hasn't asked for either (a swap must still change at least one thing, see Step 0)
 - Treat drafting `content_anchor` as a hard-stop that must be iterated to the user's satisfaction before continuing (it's an optional collaboration)
 - **Proactively report credit numbers / query the balance** — no estimate at the confirmation step; balance only surfaces on a 402, before a retry (which re-charges — see `POST /api/tasks/{task_id}/retry`), or when the user asks
 - Auto-retry a failed task (retry re-charges)
@@ -97,7 +105,7 @@ Do NOT:
 - Call any staff-only endpoint or probe paths not listed here
 
 Do:
-- **Lock the source first** (one of three) — the only required input
+- **Lock the source first** (one of three; in swap mode also your own finished video) — the only required input
 - Before submitting, restate the plan (source / character / product+visibility / language / content_anchor) and ask "Submit?" → on confirmation, call `POST /api/riffs`
 - On **HTTP 402**, follow "Billing & balance": relay `topup_url` verbatim, **no retry, no silent failure**
 - Only call `GET /api/usage/credits` when the user actively asks "how much will this cost / how much do I have left"
@@ -123,6 +131,24 @@ The formula skeleton decides which psychological path the viewer walks; `content
 
 ## Full workflow
 
+### Step 0: Adapt or swap (default adapt)
+
+| Mode | `mode` | What stays | What changes | Pick it when |
+|---|---|---|---|---|
+| **Adapt** (default) | `adapt` or omitted | The emotion formula: hook, rhythm, beats | The story, scenes, script, language | The user wants *their own* video that works like the winner |
+| **Swap** | `swap` | The source's camera, cuts, framing, action, timing, sound and frame shape | What the user names: the person (your character, if you pick one), a product, and whatever `content_anchor` names: the setting, an outfit, a line's wording | The user wants *this* video with their character in it ("same video, but me", "put my character in this one") |
+
+Swap rules (backend-enforced):
+- **A swap must change at least one thing**: a character (`character_ids`), a product that has images (`product_id`; a product without images changes nothing), or a non-empty `content_anchor`. None of the three → 400 `SWAP_NOTHING_TO_CHANGE` (its `detail` is the localized sentence, en: "A swap needs at least one change: …"). Checked for every swap source, before anything is analyzed or billed.
+- **The character is optional.** With no character the source's own person stays (their real face is in the output); there is no Auto person in swap. One task per character, like adapt; no character = one task. A picked character needs an approved avatar (`has_any_active_avatar=true`), same as adapt. If the user wants a *different* person, recommend picking a character: a person changed only by words in `content_anchor` has no reference image, so the face can differ between shots (and on Seedance 2.0 the voice stays the original's).
+- **A character only counts if the source shows a person to replace.** For a template or own-video source the analysis is already known, so a swap whose only change is a character, of a source with no person in it, → 400 `SWAP_NO_PERSON_TO_REPLACE` (en: "This video shows no person to replace: …"): offer a product with images or a written change instead. A new upload / TikTok link isn't analyzed yet at submit, so the same rule is applied after its analysis (see Swap specifics). Either way nothing is billed.
+- **Never compressed**: the output is as long as the source, so the source must be within the render-duration cap (default 45s, see General constraints). A swap source's length is its **video stream's** length, measured the way the render engine measures it (a trailing audio tail doesn't count); for a template this can differ slightly from the analyzed length shown in `GET /api/formulas`. A longer source → 400 "source video too long", including a template or own video over the cap. For a template or own-video source, `GET /api/riffs/swap-quote` tells you the exact length, price and whether it's over the cap before you submit.
+- **Ignored in swap** (accepted, not used — no need to strip them): `language` (the source's own language is kept), `product_visibility` (a product is on camera or absent), `bgm_mode`, `video_ratios` (the source's frame shape is kept, one video per character). `user_hint` still feeds a new source's analysis.
+- `content_anchor` means **"what to change"**: empty = only the picked character / product change. A product still needs to be attached (`product_id`) and, to show a specific image, named in the text.
+- **Engine: Seedance 2.5 is the recommended swap engine** (it gives the best swap result). Read it from `GET /api/settings` → `swap_recommended_video_backend` (`seedance25`, or `null` when this deployment doesn't offer that engine: then recommend nothing). It is a recommendation, not a default: an omitted `video_backend` still resolves as documented under `video_backend`, and a free-tier account still gets 403 on it. Adapt mode has no recommended engine.
+- In the app the two modes are labelled **Adapt** and **Swap** (zh 「改编」/「翻拍」); use those names when you point the user at the screen.
+- A finished swap video can be reframed into extra **vertical** ratios with `POST /api/pipeline/backfill` (billed at the same swap / reframe rates below). A swap submits one video per character in the source's own frame shape, so `video_ratios` doesn't fan it out at submit. A swap video can't itself be a swap source.
+
 ### Step 1: Lock the source (required, one of three)
 
 | Source | Param | When |
@@ -130,14 +156,15 @@ The formula skeleton decides which psychological path the viewer walks; `content
 | **Analyzed template** | `formula_id` | The user wants an existing template, or has riffed this source before — **skips analysis, fastest** (analysis is free either way; skipping it saves the wait, not credits) |
 | **TikTok link** | `tiktok_url` | The user dropped a viral link; the server auto-downloads the video + extracts BGM |
 | **Uploaded video** | `video` | The user has a local file (≤100MB, and within the render-duration cap — see General constraints; a longer source is rejected, not trimmed) |
+| **Your own finished video** (swap only) | `source_asset_id` | The user wants to swap a different character into a riff or creation video they already made. List candidates with `GET /api/assets?asset_role=final_reel&source_type=pipeline&source_type=creation&sort=created_desc` (swap videos are excluded on purpose; `extra_metadata.duration_sec`, when present, is the video-stream length a swap measures). Sent without `mode=swap` → 400 |
 
 - Template candidates: `GET /api/formulas?status=analyzed&template_type=pipeline`. `visibility=public` are platform-curated templates (usable across scopes, prefer recommending them); a template with `analysis_prompt_is_latest=false` has stale analysis — suggest `refresh-analysis` before using it.
 - **The same TikTok link already analyzed in this scope → the backend reuses the cached analysis** (free, faster); the agent needs no special handling.
-- The three sources are **mutually exclusive**; exactly one must be provided (else 400).
+- The sources are **mutually exclusive**; exactly one must be provided (else 400).
 
 ### Step 2: Optional settings (all defaulted)
 
-Each can be left alone on its default; the agent may suggest where helpful but **never blocks**.
+Each can be left alone on its default; the agent may suggest where helpful but **never blocks**. (In swap mode language / visibility / ratios don't apply, and at least one change must be named: see Step 0.)
 
 **Character (default Auto)**
 - By default `character_ids` is empty = **Auto mode**: no digital human bound, SD2 generates the on-camera person. This is the product default, not an edge case.
@@ -174,11 +201,12 @@ Restate the plan, **no credits, no balance pre-check**:
 
 ```
 Ready to riff:
-├── Source: [template name / TikTok link / uploaded filename]
-├── Character: [name / Auto (AI-generated person)]
+├── Mode: [Adapt / Swap]
+├── Source: [template name / TikTok link / uploaded filename / your video's name]
+├── Character: [name / Auto (AI-generated person); swap: a name / keep the original person]
 ├── Product: [name + visibility / none]
-├── Language: [en / es / pt / id / de / fr / it / ja / zh-CN]
-└── content_anchor: [drafted creative direction / none]
+├── Language: [en / es / pt / id / de / fr / it / ja / zh-CN; swap: the source's own]
+└── content_anchor: [drafted creative direction / none; swap: what changes besides the person]
 ```
 
 When the user says "submit / generate / riff" → call `POST /api/riffs`.
@@ -189,6 +217,7 @@ When the user says "submit / generate / riff" → call `POST /api/riffs`.
 
 - The whole riff shares one `batch_id` (the analyze task and the chained generation task both carry it) → poll `GET /api/tasks/batch/{batch_id}`.
 - Every **10-15 seconds** (shorter is pointless, longer feels dead); cap a single poll loop at **15 minutes** (pipeline tops out around 8 min, 2× tolerance), then pause and tell the user.
+- **Swap on a Seedance engine** first sends each source clip through the video vendor's content review before any rendering starts; the first swap of a source can wait several minutes there. Verdicts are remembered per clip content, so later swaps of the same, unchanged source reuse them (a clip already refused fails the task at once, without a new review); if the source file itself changed, its clips are reviewed again. If the review refuses a clip, the task fails **before any video second is billed** and the `error` names the window's seconds and the vendor's review code: relay it and offer what the message offers: a different source.
 - Summarize, don't echo every poll: "running 2m30s, currently Stage B — creative adaptation," roughly once a minute.
 - Failure handling: on `failed`/`dead`, read `error` to locate the cause, **don't auto-retry**, tell the user and let them decide; if `queued` for over 2 minutes, note "server is at its concurrency cap (10), please wait."
 - **Insufficient credits mid-riff** (a new-source riff clears the submit gate, then the real duration proves too costly — since v1.1.3 a low-balance riff usually gets an instant `402` at submit instead: TikTok URLs via a metadata duration probe, uploads via the on-disk file's real duration; this mid-riff case remains only when the TikTok probe couldn't determine the duration): the analyze task ends with `result.auto_generate_error == "insufficient_credits"` and `result.insufficient_credits` = the same structured 402 payload (`required_credits` / `available_credits` / `topup_url`). This means **no video was generated** — even when `status == "completed"` (the analysis finished but generation was skipped). Treat it like a 402: relay `topup_url` verbatim, tell the user to top up, and note they can then **retry the same task** (`POST /api/tasks/{id}/retry`, within 24h — no re-submit needed). **Never report success on a riff whose analyze task carries this field.**
@@ -371,8 +400,15 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 | `video` | File | Upload source video (≤100MB, and ≤ the render-duration cap — default 45s; see General constraints) |
 | `tiktok_url` | string | TikTok link (server downloads + extracts BGM). Must point at **one specific video** — `…/@user/video/<id>` (query params fine) or a `vm.`/`vt.`/`tiktok.com/t/` share short link. A profile-page link (`tiktok.com/@handle`, no `/video/`) is rejected with an instant 400, and so is a video longer than the render-duration cap (read from the link's metadata before anything downloads) |
 | `formula_id` | string | Analyzed template ID (yours or a public one; status must be `analyzed`, else 400) |
+| `source_asset_id` | string | **Swap only.** One of your own finished videos: an `AssetOut` with `asset_role=final_reel` and `type` `pipeline` (a riff) or `creation`, whose task completed. Anything else (a swap video, an upload, a video whose render data is gone) → 400 "can't be used for a swap". Without `mode=swap` → 400 |
 
-**Optional creative config:**
+**Mode:**
+
+| Param | Type | Default | Notes |
+|------|------|------|------|
+| `mode` | string | `adapt` | `adapt` (keep the formula, new story; everything below behaves as documented) or `swap` (keep the source's shots, swap in your character; see Step 0). Other values → 400 |
+
+**Optional creative config** (in swap mode `character_ids` is optional but at least one of character / product with images / `content_anchor` is required, and `language` / `product_visibility` / `video_ratios` are accepted but ignored):
 
 | Param | Type | Default | Notes |
 |------|------|------|------|
@@ -380,11 +416,11 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 | `product_id` | string | `""` | Empty = no product placement (`no_product` mode) |
 | `product_visibility` | string | `on_camera` | `on_camera` / `off_camera`; only effective when `product_id` is non-empty (ignored when empty) |
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
-| `video_backend` | string | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `seedance_fast` (Seedance 2.0 Fast, paid plans only) / `minimax` (MiniMax H3). Picks the render engine. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one**, so **omit this param unless the user has a plan**. A free-tier wallet may render only on `minimax` at `768P`. Any other (engine, resolution) pair from a free-tier caller gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry. Resubmit on `minimax` (omit `resolution`) if the user just wants the video. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
+| `video_backend` | string | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `seedance_fast` (Seedance 2.0 Fast, paid plans only) / `minimax` (MiniMax H3). Picks the render engine. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one**, so **omit this param unless the user has a plan**. A free-tier wallet may render only on `minimax` at `768P`. Any other (engine, resolution) pair from a free-tier caller gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry. Resubmit on `minimax` (omit `resolution`) if the user just wants the video. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400. `GET /api/settings` → `video_backends` lists engines in display order (MiniMax H3 → Seedance 2.0 Fast → Seedance 2.0 → Seedance 2.5), which is **not** a default order: never take the first entry as the default |
 | `resolution` | string | engine base | Engine-scoped: `720p` / `480p` / `1080p` for `seedance`, `720p` / `480p` for `seedance25` and `seedance_fast` (no 1080p on either), `768P` / `2K` for `minimax`. `480p` is draft quality at a lower rate. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) display rate: seedance 480p 50 credits/s · 720p 100/s · 1080p 250/s · seedance25 480p 75/s · 720p 150/s · seedance_fast 480p 40/s · 720p 80/s · H3 768P 40/s · H3 2K 80/s. Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry carries `name`, `resolutions`, `locked: true` when THIS account may use none of its tiers, and `locked_resolutions` (tiers this account may not use; free tier: everything except H3 768P). Offer only unlocked pairs instead of discovering the 403 |
 | `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
-| `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each metered as its own video at the **reframe** rate — on MiniMax H3 that is **80/s**, 2× that engine's 40/s render rate, still under 720p's 100/s; see Billing); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
+| `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each metered as its own video at that engine's **reframe** rate: Seedance 2.0 480p 60/s · 720p 120/s · 1080p 300/s · Seedance 2.5 480p 90/s · 720p 180/s · Seedance 2.0 Fast 480p 50/s · 720p 100/s · MiniMax H3 768P 80/s · 2K 160/s; see Billing); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Deduped + returned in canonical order. Invalid ratio / horizontal-mixed → 400 |
 
 **Response (`RiffOut`):**
 
@@ -402,6 +438,32 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 - A new source's analysis isn't charged, but is guarded by a **free-cost guard** — spamming new-upload analyses gets blocked (a genuine first riff never is).
 - BGM is handled by the backend automatically (use the source BGM if present, else AI-generate it). It is **not a riff parameter** — the agent neither needs to nor can set it here.
 
+**Swap specifics (`mode=swap`):**
+- Same response shape. A template or own-video source returns `mode: "generate"` (for an own video, `formula_id` is `""`); a new upload / TikTok link returns `analyze_then_generate` and the chained generation runs as a swap of the new template. The chain re-checks the change rule after analysis: if nothing is left to change (e.g. the product lost its images meanwhile), no video is generated and the analyze task's `result.auto_generate_error` is `"swap_nothing_to_change"`, or `"swap_no_person_to_replace"` when only a character was named and the analyzed source shows no person — tell the user and resubmit with a product with images or a written change (or a character, for the first code). `"swap_product_missing"` means the chosen product was deleted before the swap could start — resubmit with another product (or none). Any other non-empty `auto_generate_error` except `insufficient_credits` (e.g. `source_video_too_long`) also means no video was generated.
+- Task `type` is `swap` and the finished asset's `type` is `swap` (`asset_role=final_reel`, listed in `GET /api/assets` like any riff). Poll the batch exactly like a riff.
+- Length = the source's length (never compressed); frame shape and language = the source's. One video per character (no character = one video with the original person).
+- Billing is per second like every render, with two differences to know when quoting: each render window bills **whole seconds rounded up** (minimum 4s) of the source's video-stream length, so a 14.3s source bills 15s; and every swap render carries the source's own clip as a reference, which costs more to render, so **a swap has its own per-second rate** (display credits per delivered second): Seedance 2.0 480p **60/s** · 720p **120/s** · 1080p **300/s**; Seedance 2.5 480p **90/s** · 720p **180/s**; Seedance 2.0 Fast 480p **50/s** · 720p **100/s**; MiniMax H3 768P **80/s** · 2K **160/s**. Reframed extra ratios (of any riff, creation or swap video) use the same rates. Quote these absolute numbers, never "×N the normal rate". `GET /api/settings` → `video_backends[*].input_video_multiplier` is each engine's swap rate ÷ its normal rate (e.g. 1.2 on Seedance 2.0, 2.0 on H3): use it to compare engines, and `swap-quote` for the price.
+- **Quote before you submit** (template or own-video source): `GET /api/riffs/swap-quote` returns the exact seconds and credits per video on the chosen engine, from the same rules the 402 gate and the hold use: never compute a swap price yourself. Multiply `credits` by the number of characters (one video each). A new upload / TikTok link has no quote (it isn't measured until it's downloaded); its price is checked at submit and again before analysis, with the usual 402.
+- Swap errors: nothing to change (no character, no product with images, empty `content_anchor`) → 400 `SWAP_NOTHING_TO_CHANGE` ("a swap needs at least one change"); only a character, but the template / own video shows no person → 400 `SWAP_NO_PERSON_TO_REPLACE`; source over the render cap → 400 (same "source video too long" message as uploads, with both numbers); `source_asset_id` that isn't a finished riff/creation video → 400 ("can't be used for a swap"); `source_asset_id` without `mode=swap` → 400. A source clip refused by the Seedance content review fails the task (see Step 4), unbilled.
+
+#### `GET /api/riffs/swap-quote` — price a swap before submitting
+
+The exact price of one swap video from a template or one of your own finished videos, computed by the same rules as the submit's 402 gate and the task's hold. Call it once the user has picked the source and engine (and again if they change either), and quote from it.
+
+**Query:** exactly one of `formula_id` (an analyzed template, yours or public) / `source_asset_id` (your own finished riff or creation video, same rules as `POST /api/riffs`), plus `video_backend` and `resolution` (same values and validation as `POST /api/riffs`; always pass the engine you will submit with: an omitted `video_backend` here means `seedance`, not the submit's tier-dependent default; an omitted `resolution` means that engine's base tier). The free-tier engine lock is not applied here (the submit still enforces it; check `locked` / `locked_resolutions` in `GET /api/settings`). Rate limit 60 / 60s.
+
+**Response (`SwapQuoteOut`):**
+
+| Field | Type | Notes |
+|------|------|------|
+| `source_seconds` | number? | The source's video-stream length (null if it couldn't be measured and a template has no analyzed length) |
+| `billed_seconds` | integer? | Whole seconds one video bills (rounded up, minimum 4s) |
+| `credits` | integer | **Internal** credits one video holds and bills. ÷100 for display credits; × the number of characters for the batch. Already includes the engine's `input_video_multiplier` |
+| `max_seconds` | integer | The render-duration cap |
+| `over_cap` | boolean | `true` = the source is longer than the cap: a swap of it will be refused with 400, so offer another source instead of submitting |
+
+**Errors:** both or neither source → 400; template not analyzed, or a source that can't be swapped → 400 (same messages as `POST /api/riffs`); unknown template / asset → 404; bad engine / tier → 400.
+
 #### `POST /api/pipeline/batch` — riff video (advanced / analyzed-template batch)
 
 `riffs` already covers nearly everything (including multi-character batches). This endpoint remains for fine-grained "analyzed template + explicit params" control; the agent rarely needs it.
@@ -416,17 +478,17 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 | `language` | string | ✓ | | Must be a code from `GET /api/languages` |
 | `video_backend` | string | | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `seedance_fast` (Seedance 2.0 Fast, paid plans only) / `minimax` (MiniMax H3). Picks the render engine. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one**, so **omit this param unless the user has a plan**. A free-tier wallet may render only on `minimax` at `768P`. Any other (engine, resolution) pair from a free-tier caller gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry. Resubmit on `minimax` (omit `resolution`) if the user just wants the video. **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400 |
 | `resolution` | string | | engine base | Engine-scoped: `720p` / `480p` / `1080p` for `seedance`, `720p` / `480p` for `seedance25` and `seedance_fast` (no 1080p on either), `768P` / `2K` for `minimax`. `480p` is draft quality at a lower rate. **Omit it** and you get that engine's base tier; a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, same table as riffs. Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry carries `name`, `resolutions`, `locked: true` when THIS account may use none of its tiers, and `locked_resolutions` (tiers this account may not use; free tier: everything except H3 768P). Offer only unlocked pairs instead of discovering the 403 |
-| `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character; each extra ratio is metered at the reframe rate — on MiniMax H3 that is 80/s); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
+| `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character; each extra ratio is metered at that engine's reframe rate, same table as riffs); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
 
 #### `POST /api/pipeline/backfill` — add ratios to already-delivered videos
 
-Add extra **vertical** aspect ratios to renders you already have, without re-generating from scratch (each new ratio reframes the existing render). **Body (JSON):** `{source_asset_ids: string[], video_ratios: string[]}` (vertical ratios only — a horizontal ratio → 400). Any member of a render family works as the source: a reframed variant's `asset_id` resolves to the family's original master render automatically. **Response:** `{submitted: [{task_id, asset_id, ratio}], skipped: [{asset_id, ratio, reason}], batch_id}`. Skip reasons: `already_occupied` (ratio already delivered or in-flight for that family), `source_not_reframeable` (no reusable render on hand), `landscape_source` (a `16:9`/`4:3`/`21:9` render can't be reframed — targets are portrait-only and cross-orientation reframe is unsupported; don't submit landscape sources). 402 when the balance can't cover the submitted reframes.
+Add extra **vertical** aspect ratios to renders you already have (riff, creation or swap videos), without re-generating from scratch (each new ratio reframes the existing render: same shots, same sound, same subtitles, new frame). **Body (JSON):** `{source_asset_ids: string[], video_ratios: string[]}` (vertical ratios only — a horizontal ratio → 400). Any member of a render family works as the source: a reframed variant's `asset_id` resolves to the family's original master render automatically, and one request makes each (family, ratio) at most once (a repeated id, or two members of the same family, → the extra ones are skipped as `already_occupied`, never billed twice). **Response:** `{submitted: [{task_id, asset_id, ratio}], skipped: [{asset_id, ratio, reason}], batch_id}`. Skip reasons: `already_occupied` (ratio already delivered or in-flight for that family), `source_not_reframeable` (no reusable render on hand, or the family's original master video was deleted from the library: deleting it ends that family's reframes), `landscape_source` (a `16:9`/`4:3`/`21:9` render can't be reframed — targets are portrait-only and cross-orientation reframe is unsupported; don't submit landscape sources). Each reframe bills at its engine's reframe rate (see `POST /api/riffs` → `video_ratios`) for the seconds of the existing render it re-renders (on MiniMax H3 that can be up to 1s more per rendered piece than the video's length, because H3's pieces run slightly past their whole second; `credits_per_ratio` already includes it). 402 when the balance can't cover the submitted reframes; quote the price from `occupied` below first.
 
 #### `GET /api/pipeline/backfill/occupied?asset_id=<id>` — ratios already produced
 
-Returns `{occupied: string[]}` — the delivery ratios already delivered or in-flight for the asset's render family (grey these out in a ratio picker; they'd be skipped by the backfill).
+Returns `{occupied: string[], credits_per_ratio: number, reframeable: boolean}`. `occupied` = the delivery ratios already delivered or in-flight for the asset's render family (grey these out in a ratio picker; they'd be skipped by the backfill). `credits_per_ratio` = the exact internal credits one extra ratio will cost (÷100 for display credits), measured from the existing render: the same number the 402 gate and the hold use, so quote it and never compute a reframe price yourself. `reframeable=false` (with `credits_per_ratio` 0) = this video can't be reframed at all (e.g. its original was deleted): don't offer extra ratios.
 
 #### `POST /api/creation/batch` — creation video (original, no source video)
 
@@ -445,7 +507,7 @@ The second generation mode: no source video, no template — the **creative dire
 | `language` | string | no | Default `en`; same whitelist as riffs |
 | `video_backend` | string | no | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5) / `seedance_fast` (Seedance 2.0 Fast, paid plans only) / `minimax` (MiniMax H3); 400 if not configured on the deployment. Default is **`minimax` for a free-tier account** (no purchase or subscription on the wallet yet) and **`seedance` for a paid one**, so **omit this param unless the user has a plan**. A free-tier caller that passes any engine or tier other than `minimax` `768P` gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry; resubmit on `minimax` if the user just wants the video. |
 | `resolution` | string | no | Engine-scoped: `720p`/`480p`/`1080p` (seedance), `720p`/`480p` (seedance25, seedance_fast) or `768P`/`2K` (minimax). Omit for the engine base tier; a value the picked engine doesn't sell is a 400. Same rate rules as riffs |
-| `video_ratio` | string | no | Single ratio, default `9:16` (creation has no reframe fan-out at submit; use backfill later — currently riff-only) |
+| `video_ratio` | string | no | Single ratio, default `9:16` (creation has no reframe fan-out at submit; add ratios later with `POST /api/pipeline/backfill`) |
 
 **Response:** `{batch_id, task_ids: string[], total}` — one task per character (or one Auto task). Task `type` is `creation`; poll the batch exactly like a riff. 402 detail shape is identical to riffs. Task output shows in Library like any riff (`AssetOut.content_anchor` carries the direction).
 
@@ -685,7 +747,7 @@ Review what the engine "extracted / rewrote" for a task, for the delivery strate
 
 #### `GET /api/assets`
 
-**Query:** `asset_id` (string[]), `type` (`pipeline` = generated video / `upload` = reference material), `asset_role` (final video = `final_reel`), `character` (string[]), `product_id` (string[]), `formula_id` (string[]), `created_window` (today/7d/30d/90d), `sort` (created_desc/created_asc/character_az/product_az), `page` (≥1), `limit` (1-200, default 50).
+**Query:** `asset_id` (string[]), `type` (`pipeline` = riff video / `creation` = creation video / `swap` = swap video / `upload` = reference material), `source_type` (string[], repeatable: filter by those same type values, e.g. `source_type=pipeline&source_type=creation` for swap-source candidates), `asset_role` (final video = `final_reel`), `character` (string[]), `product_id` (string[]), `formula_id` (string[]), `created_window` (today/7d/30d/90d), `sort` (created_desc/created_asc/character_az/product_az), `page` (≥1), `limit` (1-200, default 50).
 
 **Response:** `AssetOut[]`.
 
@@ -765,7 +827,7 @@ No body. Bootstraps subtitle data for older videos (`{status: "queued", task_id}
 
 ### Billing & balance
 
-> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 480p **50/s** (internal 5,000) / 720p **100 credits/s** (10,000) / 1080p **250/s** (25,000); Seedance 2.5 480p **75/s** / 720p **150/s** (premium sibling engine, keyed `seedance25:480p` / `seedance25:720p` in the rate map); Seedance 2.0 Fast 480p **40/s** / 720p **80/s** (`seedance_fast:*`); MiniMax H3 768P **40/s** (internal 4,000, launch pricing) / 2K **80/s** (8,000). No 1080p on 2.5 or Fast. The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** at standard quality (MiniMax H3 768P, 40/s → 600; Seedance 2.0 720p 100/s → 1,500 = 150,000 internal). 480p is draft quality and cheaper than 720p on Seedance (Seedance 2.0 Fast 480p 40/s → 600, Seedance 2.0 480p 50/s → 750). **The signup trial is exactly that: one free 15-second video on MiniMax H3 (600 display credits)** — which is why a free-tier wallet renders only on H3 768P (every other engine or tier needs a plan; see `video_backend`). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. **Plan prices are in USD and exclude tax** — where the customer's region is taxable, Stripe adds it at checkout (business customers can enter a VAT/tax ID there for reverse charge), so when you quote a plan price, say "plus any applicable tax". Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either.
+> **Billing rules (use this framing when explaining to users)**: charged only by **successfully generated video seconds**, at the rate of the tier that rendered them. **Customer-facing numbers are DISPLAY CREDITS = internal credits ÷ 100** (the unit the app's wallet shows; never re-price a credit in dollars). Display rates: Seedance 2.0 480p **50/s** (internal 5,000) / 720p **100 credits/s** (10,000) / 1080p **250/s** (25,000); Seedance 2.5 480p **75/s** / 720p **150/s** (premium sibling engine, keyed `seedance25:480p` / `seedance25:720p` in the rate map); Seedance 2.0 Fast 480p **40/s** / 720p **80/s** (`seedance_fast:*`); MiniMax H3 768P **40/s** (internal 4,000, launch pricing) / 2K **80/s** (8,000). No 1080p on 2.5 or Fast. The engine is the user's choice at submit (`video_backend`), so **a cheaper engine is a real lever** when someone is short on balance — offer it before offering an upgrade. **analysis is free** (re-riffing the same source reuses the cached analysis); **you pay only for video seconds actually generated** — a run that produces no video output costs nothing, but any seconds already rendered (including on cancel or a later-stage failure) are charged and not refunded. One standard 15s video bills **from ≈600 display credits** at standard quality (MiniMax H3 768P, 40/s → 600; Seedance 2.0 720p 100/s → 1,500 = 150,000 internal). 480p is draft quality and cheaper than 720p on Seedance (Seedance 2.0 Fast 480p 40/s → 600, Seedance 2.0 480p 50/s → 750). **The signup trial is exactly that: one free 15-second video on MiniMax H3 (600 display credits)** — which is why a free-tier wallet renders only on H3 768P (every other engine or tier needs a plan; see `video_backend`). When quoting costs to a user BEFORE they pick an engine, use the "from" floor + the rate list; AFTER they pick, quote the exact figure for their choice. Subscription credits are valid for the period and don't roll over. **Plan prices are in USD and exclude tax** — where the customer's region is taxable, Stripe adds it at checkout (business customers can enter a VAT/tax ID there for reverse charge), so when you quote a plan price, say "plus any applicable tax". Get exact rates from `GET /api/billing/subscription` — `video_credits_per_second` is the 720p base and `video_credits_per_second_map` has every tier; never hardcode either. **Swap mode and reframed extra ratios** carry the source video as a reference in every render, so they have their own per-second rates: Seedance 2.0 480p **60/s** / 720p **120/s** / 1080p **300/s**; Seedance 2.5 480p **90/s** / 720p **180/s**; Seedance 2.0 Fast 480p **50/s** / 720p **100/s**; MiniMax H3 768P **80/s** / 2K **160/s**. Adapt and creation videos always bill the plain rates above. A swap also rounds up to whole seconds per render window (minimum 4s). For an exact swap price use `GET /api/riffs/swap-quote` (see `POST /api/riffs` → Swap specifics).
 
 **402 handling (hard constraint):** when submit (`riffs` / `pipeline/batch`) lacks balance, it returns **HTTP 402** with a structured `detail`:
 
@@ -834,6 +896,7 @@ List scope members (you must be a member, else 403). Returns `[{id, scope_id, us
 |------|------|------|
 | Source video (upload or TikTok link) | Upload ≤ **100 MB**; both ≤ the **render-duration cap** (`max_render_duration`, default **45 s**, runtime-adjustable, ceiling 90s) — the SAME single number that caps the generated video, not a separate limit; over the duration → instant 400 (uploads are also cleaned up) | `POST /api/riffs` `video`/`tiktok_url`, `POST /api/formulas/analyze`, `assets/upload` |
 | Generated video length | ≤ **max_render_duration** (the same single cap as the source upload above) | engine render budget |
+| Swap source length | ≤ **max_render_duration** for every swap source (template, own video, upload, link): a swap is never compressed, so the output equals the source length | `POST /api/riffs` `mode=swap` |
 | Image upload | ≤ **50 MB** each, ≤ **8 images** per product, `.jpg/.jpeg/.png/.webp` | product images |
 | `content_anchor` / `user_hint` | ≤ **5000 chars** | riffs / pipeline/batch |
 | riffs rate | **10 / 60 s** | `POST /api/riffs` |
@@ -854,6 +917,8 @@ List scope members (you must be a member, else 403). Returns `[{id, scope_id, us
 | Original / no source | "make an original ad, no reference", "just write me a video about X", "创作一条" | `POST /api/creation/batch` (creative direction REQUIRED — draft it with the user, confirm before submit) |
 | Riff a new viral | "why did this TikTok pop off — riff it for me" | `POST /api/riffs` (pass `tiktok_url`/`video` → analyze→generate) |
 | Run an existing template | "make one with template 3" | `POST /api/riffs` (pass `formula_id`) |
+| Same shots, my character | "put my character in this exact video", "keep the video, swap the person", "翻拍" | `POST /api/riffs` with `mode=swap` + a character + one source; `content_anchor` = what else changes |
+| Swap into my own video | "make that last video again with Chloe" | `GET /api/assets?asset_role=final_reel&source_type=pipeline&source_type=creation` → `POST /api/riffs` `mode=swap` + `source_asset_id` |
 | Browse templates | "what templates are there", "which is hot lately" | `GET /api/formulas?status=analyzed&template_type=pipeline` (by `used_count` / `tags`) |
 | Drill into a template | "tell me about this one", "why recommend it" | `GET /api/formulas/{id}`, read `extraction_summary` |
 | Re-analyze an old template | "this is stale", "re-run analysis" | `POST /api/formulas/{id}/refresh-analysis` |
@@ -896,8 +961,12 @@ queued → running → completed
 |-------------|------|------|
 | `401` unauthenticated | vee_session expired/missing | Re-run the device flow (`POST /api/skill/device/authorize` → user approves → poll `.../token`); see **Auth** |
 | `402` insufficient_credits | not enough to submit | Show the shortfall in display credits (internal ÷ 100) + relay `topup_url` verbatim, **no retry** |
-| `400` — not exactly one source | missing or multiple sources | Ensure exactly one of `video`/`tiktok_url`/`formula_id` |
-| `400` — source video too long | the uploaded file or the TikTok link runs longer than `max_render_duration` (the message states both numbers) | Ask the user for a shorter video, or to trim it and upload the trimmed file |
+| `400` — not exactly one source | missing or multiple sources | Ensure exactly one of `video`/`tiktok_url`/`formula_id` (swap: or `source_asset_id`) |
+| `400` `SWAP_NOTHING_TO_CHANGE` — a swap needs at least one change | `mode=swap` with no character, no product with images and an empty `content_anchor` | Ask what should change: a character to put in, a product to place, or a written change |
+| `400` `SWAP_NO_PERSON_TO_REPLACE` — no person to replace | `mode=swap` naming only a character, from a template / own video that shows no person | Offer a product with images or a written change, or another source |
+| `400` — video can't be used for a swap | `source_asset_id` is not a finished riff/creation video of yours (e.g. a swap video, or its render data is gone), or the template has no source video | Offer a template, a new upload/link, or another own video |
+| `400` — own video as source needs swap | `source_asset_id` sent without `mode=swap` | Add `mode=swap`, or use a template/upload/link for an adapt riff |
+| `400` — source video too long | the uploaded file or the TikTok link runs longer than `max_render_duration` (the message states both numbers); in swap mode, also any template / own video over the cap | Ask the user for a shorter video, or to trim it and upload the trimmed file |
 | `400` — TikTok link is not a specific video | `tiktok_url` is a profile page or other non-video link (path lacks `/video/`) | Ask the user for the link of **one video** (contains `/video/`) or a `vm.`/`vt.` share short link |
 | `400` — required missing | name/description etc. not sent | Fill per the field tables; don't paper over with empty strings |
 | `400` — invalid language | a code not in the candidates | First `GET /api/languages` for candidates |
@@ -906,6 +975,8 @@ queued → running → completed
 | `429` rate limit | riffs > 10/60s or over the daily cap | Wait a bit; don't blindly retry |
 | `500` / timeout | server error | Say try again later; if it recurs, report to the developers |
 | Task `failed` + error mentions "Seedance" | proxy / API failure | Surface the specific error, let the user decide |
+| Swap task `failed` + error says the source has no person to replace and nothing else changes | only a character was named, but the source shows no person (nothing billed; checked before any review or render) | Offer a product with images or a written change, or another source |
+| Swap task `failed` + error names a window's seconds and a review code | the video vendor's content review refused that source clip (nothing billed) | Relay the message; offer another source. Retrying the same source fails the same way, at once |
 | Task `queued` over 2 min | concurrency full (cap 10) | Say "concurrency is full, please wait" |
 
 ---
