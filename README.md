@@ -19,7 +19,7 @@ This is the **official Riffkit agent skill**. Add it to your AI assistant (Claud
 Point your AI coding assistant at the live skill and let it set itself up:
 
 ```
-Read https://riffkit.ai/SKILL.md and follow the instructions to set up Riffkit.
+Read https://riffkit.ai/SKILL.md and follow the instructions to join Riffkit
 ```
 
 Then just ask, in plain language:
@@ -73,14 +73,14 @@ https://github.com/user-attachments/assets/e2fb65c3-5123-409f-bdce-3f64b4a66f48
 
 `~/.agents/skills` is the shared skill root several harnesses scan, so the DSH line above also registers Riffkit anywhere else that reads it. Verified against DSH's own `dsh-skill-filesystem` provider: discovered, frontmatter parsed, full body loaded, no changes to the skill required.
 
-No MCP server to run, no local models — the skill is a thin layer over Riffkit's hosted backend.
+Nothing to run locally and no local models: the skill is a thin layer over Riffkit's hosted backend. Chat assistants such as Claude and ChatGPT connect through Riffkit's hosted MCP connector instead, at `https://mcp.riffkit.ai/mcp` ([setup](https://riffkit.ai/mcp)).
 
 ## What you get
 
 - **Riffs the formula, not the footage** — studies a proven video's hook, pacing, and beats, then generates new footage. The source clip is never re-uploaded, so the result is your own original.
 - **Your product, woven in** — a physical item or an app screen, placed into the story the format calls for (not bolted onto a generic stock avatar).
 - **A consistent character** — your own avatar and persona across every video, or **Auto** (no avatar needed).
-- **English or Spanish** — native phrasing and the right fonts, not a translated subtitle laid on top.
+- **Nine languages** — English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese or Chinese, with native phrasing and the right fonts, not a translated subtitle laid on top.
 - **Post-ready** — voiceover, on-screen captions timed to the audio, a cover frame, and a caption with hashtags.
 - **Ad-ready** — the same riff doubles as UGC-style ad creative for TikTok Ads & Meta Ads, batched so the testing engine never runs dry.
 - **Any look** — real footage, cartoon, or game-style; the music ducks under the voiceover so it reads as real, not AI.
@@ -99,9 +99,9 @@ Short, real walkthroughs — the prompt you give your agent and what comes back:
 
 **Do I need an account?** Yes — Riffkit is hosted; generating videos needs a Riffkit account, billed by the second of finished video.
 
-**Which agents work?** Any assistant that can read a URL and make HTTP calls — Claude Code, Codex, Cursor, OpenClaw, and more. There's no MCP server to run.
+**Which agents work?** Any assistant that can read a URL and make HTTP calls — Claude Code, Codex, Cursor, OpenClaw, and more. Chat assistants such as Claude and ChatGPT add the hosted connector `https://mcp.riffkit.ai/mcp` instead ([setup](https://riffkit.ai/mcp)).
 
-**What languages?** English and Spanish — native phrasing and fonts, not a translated subtitle laid on top.
+**What languages?** Nine: English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese and Chinese — native phrasing and fonts, not a translated subtitle laid on top.
 
 **Is my source video re-uploaded?** No. Riffkit studies the *formula* and generates new footage; the source clip is never re-hosted, so the output is your own original.
 
