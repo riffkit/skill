@@ -19,7 +19,7 @@ This is the **official Riffkit agent skill**. Add it to your AI assistant (Claud
 Point your AI coding assistant at the live skill and let it set itself up:
 
 ```
-Read https://riffkit.ai/SKILL.md and follow the instructions to join Riffkit
+Run curl -fsSL https://riffkit.ai/SKILL.md in your terminal and follow the instructions to join Riffkit
 ```
 
 Then just ask, in plain language:
