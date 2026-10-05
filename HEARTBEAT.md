@@ -1,8 +1,8 @@
 # Riffkit Heartbeat
 
-> **Version:** 1.8.27 (kept in sync with SKILL.md's frontmatter)
+> **Version:** 1.9.2 (kept in sync with SKILL.md's frontmatter)
 
-This file is the **version-check procedure**; it does **no throttling** — throttling is owned by SKILL.md's heartbeat entry section (once every 24 hours). All this does is compare the local SKILL.md `version` against the remote `/SKILL.json` `version` and re-download on mismatch.
+This file is the **version-check procedure**; it does **no throttling** — throttling is owned by SKILL.md's heartbeat entry section (once every 24 hours). All this does is compare the local SKILL.md `version` against the remote `/SKILL.json` `version` and re-download the skill (SKILL.md and its `references/`) on mismatch.
 
 **Base URL:** `https://riffkit.ai` (written below as `${BASE_URL}`)
 
@@ -12,7 +12,7 @@ This file is the **version-check procedure**; it does **no throttling** — thro
 |------|------|-----------|
 | `BASE_URL` | Riffkit API root | `https://riffkit.ai` |
 | `SKILLS_ROOT` | The AI agent's skills root (the one exported in install step 1) | project `.claude/skills` / global `~/.claude/skills` / Codex `.codex/skills`, etc. |
-| `SKILL_DIR` | The riffkit skill's local directory (where `SKILL.md` / `HEARTBEAT.md` live) | `${SKILLS_ROOT}/Riffkit` |
+| `SKILL_DIR` | The riffkit skill's local directory (where `SKILL.md` / `HEARTBEAT.md` / `references/` live) | `${SKILLS_ROOT}/Riffkit` |
 | `AGENT_MEMORY_DIR` | The agent's own memory dir (holds `Riffkit-heartbeat-state.json`, separate from the skill dir) | Claude Code: `~/.claude/memory` / Codex: `~/.codex/workspace/memory` |
 
 ---
@@ -48,13 +48,19 @@ LOCAL_VERSION=$(grep -m1 '^version:' "${SKILL_DIR}/SKILL.md" \
 **Comparison rule:** a plain **string equality** check (Riffkit version numbers are always minted by the server; the local copy is never newer than remote).
 
 - `REMOTE_VERSION === LOCAL_VERSION` → already up to date; tell the user the current version and finish
-- `REMOTE_VERSION !== LOCAL_VERSION` (including either side being empty) → re-download SKILL.md per below
+- `REMOTE_VERSION !== LOCAL_VERSION` (including either side being empty) → re-download the skill per below
 - `REMOTE_VERSION` empty (`/SKILL.json` errored, network failure) → skip this update, tell the user the failure honestly, don't retry; on the **manual** path, suggest trying again later
 
-## Re-download SKILL.md
+## Re-download the skill
+
+SKILL.md and the reference files its index names are one version: download them together.
 
 ```bash
+mkdir -p "${SKILL_DIR}/references"
 curl -s "${BASE_URL}/SKILL.md?t=$(date +%s)" > "${SKILL_DIR}/SKILL.md"
+for n in details anchor api intents errors install; do
+  curl -s "${BASE_URL}/skill/$n.md?t=$(date +%s)" > "${SKILL_DIR}/references/$n.md"
+done
 ```
 
 After downloading, tell the user the new `frontmatter.version` (SKILL.md keeps no changelog, so just report the version):
@@ -98,7 +104,7 @@ node -e '
 | `/SKILL.json` non-200 / timeout | Tell the user remote is temporarily unreachable; on the **auto** path skip and still update `lastHeartbeatCheck` (so the next heartbeat doesn't immediately hammer remote); on the **manual** path report the cause honestly, no auto-retry |
 | Local `SKILL.md` missing | Reinstall per SKILL.md's "Installation" section (the `curl -o` line), then update `lastHeartbeatCheck` as appropriate |
 | JSON parse failure (remote/local) | Skip this round, do NOT update `lastHeartbeatCheck` (leave it for the next heartbeat) |
-| SKILL.md download failure (disk full, permissions) | Tell the user the cause, keep the old SKILL.md, **do not** update `lastHeartbeatCheck` |
+| SKILL.md or reference download failure (disk full, permissions) | Tell the user the cause, keep the old files, **do not** update `lastHeartbeatCheck` |
 
 On error, don't retry in a loop — **log and move on.**
 
