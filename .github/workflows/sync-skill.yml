@@ -33,6 +33,20 @@ jobs:
           mkdir -p riffkit
           cp SKILL.md riffkit/SKILL.md
           cp HEARTBEAT.md riffkit/HEARTBEAT.md
+          # The core SKILL.md links its reference files as references/<name>.md;
+          # SKILL.json lists them. Pull each one next to every copy of SKILL.md.
+          rm -rf references && mkdir -p references
+          python3 -c 'import json; [print(k, v) for k, v in json.load(open("SKILL.json")).get("references", {}).items()]' |
+            while read -r name path; do
+              curl -fsSL "https://riffkit.ai${path}" -o "references/${name}.md"
+            done
+          rm -rf riffkit/references && cp -R references riffkit/references
+          # The Claude Code plugin (.claude-plugin/marketplace.json lists it):
+          # the same skill under plugins/riffkit/skills/riffkit/.
+          P=plugins/riffkit/skills/riffkit
+          rm -rf "$P" && mkdir -p "$P"
+          cp SKILL.md HEARTBEAT.md "$P"/
+          cp -R references "$P"/references
       - name: Commit if changed
         run: |
           git config user.name "riffkit-bot"
@@ -42,7 +56,7 @@ jobs:
           # (plain `git diff` is blind to untracked files).
           git add -A
           if ! git diff --cached --quiet; then
-            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json from riffkit.ai (+ riffkit/ skill-root copy)"
+            git commit -m "chore: sync SKILL.md / HEARTBEAT.md / SKILL.json and references from riffkit.ai (+ riffkit/ and plugin copies)"
             git push
           else
             echo "Already up to date."

@@ -68,6 +68,7 @@ https://github.com/user-attachments/assets/e2fb65c3-5123-409f-bdce-3f64b4a66f48
 | Where | How |
 | --- | --- |
 | **Claude Code · Codex · Cursor · OpenClaw** — any agent that can run terminal commands | `Run curl -fsSL https://riffkit.ai/SKILL.md in your terminal and follow the instructions to join Riffkit` |
+| **Claude Code plugin** — install from this repo as a marketplace | `/plugin marketplace add riffkit/skill`, then `/plugin install riffkit@riffkit` |
 | **DeepSeek Harness (DSH)** — reads `SKILL.md` natively | `mkdir -p ~/.agents/skills/riffkit && curl -sSL https://riffkit.ai/SKILL.md -o ~/.agents/skills/riffkit/SKILL.md` |
 | **Browser** — no agent needed | Upload a clip or paste a TikTok link at [riffkit.ai](https://riffkit.ai) |
 

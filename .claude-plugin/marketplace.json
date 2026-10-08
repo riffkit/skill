@@ -1,0 +1,15 @@
+{
+  "name": "riffkit",
+  "description": "The official Riffkit plugin: make short vertical videos from Claude Code by remaking a winning short video with your own product, character and language.",
+  "owner": {
+    "name": "Riffkit",
+    "email": "team@riffkit.ai"
+  },
+  "plugins": [
+    {
+      "name": "riffkit",
+      "source": "./plugins/riffkit",
+      "description": "Remake a winning TikTok, Reel or Short into your own video (Adapt), keep a video's shots and change the person, product or style (Swap), or make one from a written idea. Product ads and UGC-style videos in 9 languages; the agent quotes the price before it spends credits."
+    }
+  ]
+}
