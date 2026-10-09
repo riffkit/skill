@@ -619,7 +619,7 @@ Review what the engine "extracted / rewrote" for a task, for the delivery strate
 | `character_id` / `formula_id` / `formula_name` / `product_id` | string? | Linked entities |
 | `file_url` | string? | Download path (append `${BASE_URL}`) |
 | `thumb_url` | string? | Thumbnail |
-| `sd_video_url` | string? | Raw pre-post-processing SD video (only when the final had post-processing) |
+| `sd_video_url` | string? | Raw pre-post-processing SD video (only when the final had post-processing; always null on the free plan) |
 | `caption` | string? | Suggested copy (hook → body → closing CTA in one paragraph) |
 | `asset_hashtags` | string[] | Suggested hashtags |
 | `batch_id` / `task_id` | string? | Source batch / task |
@@ -628,7 +628,7 @@ Review what the engine "extracted / rewrote" for a task, for the delivery strate
 
 #### `GET /api/assets/{asset_id}/link` — a link to a finished video that needs no session
 
-`asset_id` (path) is the id of a finished video (`asset_role=final_reel`): a completed task's `result.asset_id`, or an `id` from `GET /api/assets`. Returns `{url, expires_at, seconds_valid}`: `url` is an absolute link that plays the video in a browser with no cookie (it opens in place rather than as a download), `seconds_valid` is how long it works, counted from the call (21600 = 6 hours), and `expires_at` is that moment as a timestamp (naive UTC, like every timestamp here). Use it to hand the video to the user where your session cookie doesn't travel: a link in chat, their browser, another tool. Give `url` exactly as returned, say how long it works, and that anyone who holds the link can open the video until then. It points at the video's current file: after a subtitle burn, or once it has stopped working, call again for a fresh one. Nothing is stored or changed and nothing becomes public (a public share page is something the user starts in the web app). 404 = no finished video with that id in this account. Rate limit 60 / 60s.
+`asset_id` (path) is the id of a finished video (`asset_role=final_reel`): a completed task's `result.asset_id`, or an `id` from `GET /api/assets`. Returns `{url, expires_at, seconds_valid, watermarked}`: `url` is an absolute link that plays the video in a browser with no cookie (it opens in place rather than as a download), `seconds_valid` is how long it works, counted from the call (21600 = 6 hours), `expires_at` is that moment as a timestamp (naive UTC, like every timestamp here), and `watermarked` says whether the file carries the free plan's small Riffkit watermark. Use it to hand the video to the user where your session cookie doesn't travel: a link in chat, their browser, another tool. Give `url` exactly as returned, say how long it works, and that anyone who holds the link can open the video until then. It points at the video's current file: after a subtitle burn, or once it has stopped working, call again for a fresh one. Nothing is stored or changed and nothing becomes public (a public share page is something the user starts in the web app). 404 = no finished video with that id in this account. Rate limit 60 / 60s.
 
 #### `POST /api/assets/upload` (sidecar; not used by the main flow)
 
