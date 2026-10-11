@@ -16,7 +16,7 @@ The formula skeleton decides which psychological path the viewer walks; `content
 > When non-empty it is the **highest-priority input** for surface direction.
 > Failure test: if swapping the surface for any other topic still holds, the anchor never anchored the output → invalid.
 >
-> **Product-image targeting (on-camera placement)**: naming a product image's exact name in the anchor narrows what the engine receives to ONLY the named image(s) — the rest of the product's images are withheld from that render. Name none → all images ship (default). Use this when the product has many images and the video should feature a specific one (e.g. "开场特写 正面图"); image names come from `GET /api/products` → `images[].name`. Matching is case-insensitive with word boundaries for ASCII names.
+> **Pointing at a picture or a person**: an image is used because its id was sent (`product_image_ids`, `reference_ids`), never because its name appears in the text. To tie words to one, write an @-mention: `@` plus a short name in the anchor, listed in `mentions` with what it points at (a reference image, a product image in use, a character). The words around it say who wears it, where and when.
 
 **Drafting template:**
 
@@ -53,10 +53,10 @@ The engine already mirrors the source. Your anchor is a **delta**, not a brief.
 
 4. **Keep separate axes separate.** How it's shot (lighting, grain, camera feel) and what's in it (wardrobe, props, setting) are different axes. Collapse them into one sentence and one will drag the other — asking for an unpolished look often flattens the subject too.
 
-5. **Quote what must stay word-for-word.** Text in double quotes — a slogan, a line to be spoken exactly, a caption that must read a certain way — is kept byte-for-byte and never translated, even when the video's `language` differs (`she says "Don't copy. Riff."` keeps that English line inside a Japanese video). Everything unquoted is direction: the engine realizes it in the target language and fits numbers and details to the script it writes.
+5. **Quote what must stay word-for-word.** Text in double quotes — a slogan, a line to be spoken exactly, a caption that must read a certain way — is kept byte-for-byte and never translated, even when the video's `language` differs (`she says "Make it yours."` keeps that English line inside a Japanese video). Everything unquoted is direction: the engine realizes it in the target language and fits numbers and details to the script it writes.
 
 **Building your own guard list.** Something in a render you never asked for is the engine's default showing: add an explicit "not X" next time, and keep a short list of these to paste into every anchor. It is the cheapest fix there is.
 
-**Place a product image on camera by name (on_camera only)**: write the product image's `name` directly in `content_anchor` text and the engine matches that name and places the image on screen. The image must be named (an unnamed image can't be referenced). Example: writing in `content_anchor` "use the ingredient-scan screen shot to reveal the hidden additives" puts the image named "ingredient-scan screen" into the matching shot. (This is plain name matching, not an @-syntax — the @-mention is only a web-UI textarea helper that inserts the name for you; agents write the name themselves.)
+**Point at a picture or a person with an @-mention**: write `@` plus a short name in `content_anchor` ("she wears @Red dress in the car") and send `mentions` = `[{"token": "@Red dress", "target": "reference", "id": "<reference id>"}]`. `target` is `reference` (one of `reference_ids`), `product_image` (one of the product images in use) or `persona` (one of `character_ids`). The token must appear in the text exactly as written, once per mention. A name written without a mention is only text: it selects nothing.
 
 ---

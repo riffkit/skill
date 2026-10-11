@@ -14,7 +14,11 @@ Each step of **The flow** names a `riffkit` command; each command is one route. 
 | `riffkit list_characters` | `GET /api/characters` | Digital characters |
 | `riffkit list_products` | `GET /api/products` | Products |
 | `riffkit create_product` | `POST /api/products` | Create a product |
-| `riffkit add_product_image` | `POST /api/products/{product_id}/images` | Add a product image |
+| `riffkit add_product_image` | `POST /api/products/{product_id}/images` | Add an image file to a product |
+| `riffkit list_references` | `GET /api/references` | Reference images (an outfit, a place, a prop) a video can show |
+| `riffkit add_reference` | `POST /api/references` | Add an image file to the reference library |
+| `riffkit create_image_upload_link` | `POST /api/image-uploads` | A link where the user adds an image (a product's, or a reference) from their phone or computer |
+| `riffkit get_image_upload` | `GET /api/image-uploads/{upload_id}` | Has that image arrived (`added` → its id) |
 | `riffkit list_languages` | `GET /api/languages` | Video language codes |
 | `riffkit quote_remake` | `GET /api/riffs/quote` | The price of an adapt or swap riff, from any source |
 | `riffkit quote_swap` | `GET /api/riffs/swap-quote` | The price of one swap video from a template |
@@ -45,7 +49,6 @@ Each step of **The flow** names a `riffkit` command; each command is one route. 
 | `riffkit update_template` | `PATCH /api/formulas/{formula_id}` | Rename one of your own templates or change its hint |
 | `riffkit set_voice_sample` | `POST /api/characters/{character_id}/voice-sample` | Set a character's voice sample |
 | `riffkit clear_voice_sample` | `DELETE /api/characters/{character_id}/voice-sample` | Remove a character's voice sample |
-| `riffkit upload_reference` | `POST /api/assets/upload` | Upload a reference file (not used by the main flow) |
 | `riffkit get_credits` | `GET /api/usage/credits` | The balance, today's spend and the daily limit |
 | `riffkit get_daily_budget` | `GET /api/usage/daily-budget` | Today's spend against the daily limit |
 | `riffkit get_usage_summary` | `GET /api/usage/summary` | Spend summary |
@@ -53,9 +56,9 @@ Each step of **The flow** names a `riffkit` command; each command is one route. 
 | `riffkit get_plan` | `GET /api/billing/subscription` | The current plan's name and the per-second rates (read-only) |
 | `riffkit list_members` | `GET /api/scopes/{scope_id}/members` | Team members (team scopes) |
 | `riffkit get_account` | `GET /api/auth/me` | Who is signed in |
-| `riffkit sign_out` | `POST /api/auth/logout` | End this session |
-| `riffkit device_authorize` | `POST /api/skill/device/authorize` | Start the one-click sign-in (Auth) |
-| `riffkit device_token` | `POST /api/skill/device/token` | Poll that sign-in for the session (Auth) |
+| `riffkit sign_out` | `POST /api/auth/logout` | End this session (with the CLI: `riffkit logout`) |
+| `riffkit device_authorize` | `POST /api/skill/device/authorize` | Start the one-click sign-in (Auth; with the CLI: `riffkit login`) |
+| `riffkit device_token` | `POST /api/skill/device/token` | Poll that sign-in for the session (Auth; with the CLI: `riffkit login`) |
 | `riffkit list_plans` | `GET /api/billing/plans` | The plan catalog |
 | `riffkit cancel_plan` | `POST /api/billing/cancel` | End the plan at the period's end |
 | `riffkit resume_plan` | `POST /api/billing/resume` | Keep a plan that was set to end |
@@ -196,7 +199,7 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 |------|------|------|------|
 | `mode` | string | `adapt` | `adapt` (keep the formula, new story; everything below behaves as documented) or `swap` (keep the source's shots, swap in your character; see The flow, step 0). Other values → 400. `adapt` is only the API's default when the param is omitted: the mode is the user's choice (The flow, step 0), so always send the one they chose |
 
-**Optional creative config** (in swap mode `character_ids` is optional but at least one of character / product with images / `content_anchor` is required, and `language` / `product_visibility` / `bgm_mode` / `video_ratios` are accepted but ignored):
+**Optional creative config** (in swap mode `character_ids` is optional but at least one of character / product with images / reference image / `content_anchor` is required, and `language` / `product_visibility` / `bgm_mode` / `video_ratios` are accepted but ignored):
 
 | Param | Type | Default | Notes |
 |------|------|------|------|
@@ -206,7 +209,10 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 | `language` | string | `en` | Must be a code from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`); an invalid value returns 400 |
 | `video_backend` | string | tier-dependent | `seedance` (Seedance 2.0) / `seedance25` (Seedance 2.5, premium) / `seedance_fast` (Seedance 2.0 Fast) / `minimax` (MiniMax H3). Picks the render engine. Default for a **free-tier account** (no purchase or subscription on the wallet yet): **`seedance_fast` `480p` in both modes** (also the cheapest free swap; where Fast isn't offered, `seedance` `480p`); **`seedance` `720p` in adapt mode and `seedance25` `720p` in swap mode for a paid one** (the recommended swap engine; `seedance` `720p` where 2.5 isn't offered) — so **omit this param unless the user has a plan**. A free-tier wallet may render on `seedance_fast` `480p` or `seedance` `480p` (480p only); a free-tier caller that names `seedance` / `seedance_fast` without `resolution` gets `480p`. Any other (engine, resolution) pair from a free-tier caller gets **403 `subscription_required`**, the same payload as the analyze paywall (see `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` verbatim, do not retry. Resubmit without `video_backend` / `resolution` (the free default for that mode) if the user just wants the video. The pair each form defaults to for THIS account is `GET /api/settings` → `default_video_pairs` (`adapt` / `creation` / `swap` → `{backend, resolution}`). **Resolution is engine-scoped** — see `resolution` below. An engine the deployment has no key for → 400 `video_backend_unavailable`; unknown value → 400. `GET /api/settings` → `video_backends` lists engines in display order (MiniMax H3 → Seedance 2.0 Fast → Seedance 2.0 → Seedance 2.5), which is **not** a default order: never take the first entry as the default |
 | `resolution` | string | engine base | Engine-scoped: `720p` / `480p` / `1080p` for `seedance`, `720p` / `480p` for `seedance25` and `seedance_fast` (no 1080p on either), `768P` / `2K` for `minimax`. `480p` is draft quality at a lower rate. **Omit it** and you get that engine's base tier (a free-tier account gets that engine's free tier: `480p` on `seedance` / `seedance_fast`); a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) display rate: seedance 480p 50 credits/s · 720p 100/s · 1080p 250/s · seedance25 480p 75/s · 720p 150/s · seedance_fast 480p 40/s · 720p 80/s · H3 768P 40/s · H3 2K 80/s. Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry carries `name`, `resolutions`, `locked: true` when THIS account may use none of its tiers, and `locked_resolutions` (tiers this account may not use; free tier: everything except Seedance 2.0 Fast 480p and Seedance 2.0 480p). Offer only unlocked pairs instead of discovering the 403 |
-| `content_anchor` | string | `""` | Creative direction (≤5000 chars); to place a product image on camera, write that image's `name` in the text (on_camera; plain name match) |
+| `content_anchor` | string | `""` | Creative direction (≤5000 chars). An @-mention in it is listed in `mentions` |
+| `reference_ids` | string | — | JSON-array string of reference image ids (`GET /api/references`, or a product image's `media.id`), in the order to use them. They share the engine's per-render image limit with the product images in use; over it → 400 saying how many to remove. Omitted = no reference image |
+| `product_image_ids` | string | — | JSON-array string of the selected product's image ids the video may use. Only with a product on camera (a swap's product always is), at least one when the product has images; ignored off camera; sent without a product → 400. Omitted = its images in their order, as many as fit beside the references |
+| `mentions` | string | — | JSON-array string of `{token, target, id}`: `token` = `@` plus a short name that appears in `content_anchor` exactly as written (each token once); `target` = `reference` / `product_image` / `persona`; `id` = one of `reference_ids` / a product image in use / one of `character_ids`. Anything else → 400 with the reason |
 | `user_hint` | string | `""` | Hook hint (≤5000); **new source only** — ignored when `formula_id` is given |
 | `bgm_mode` | string | `""` | Empty = automatic (the template's original BGM if it has one that isn't `disabled`, else AI-generated music). `source` / `source_ref` / `sd2`, only used with an analyzed template (see Behavior notes); any other value → 400 |
 | `video_ratios` | string | `'["9:16"]'` | JSON-array string of delivery aspect ratios. **Vertical group `9:16` / `3:4` / `1:1` / `4:5` can be multi-selected** (one master render fans out into a reframed video per ratio, each metered as its own video at that engine's **reframe** rate: Seedance 2.0 480p 60/s · 720p 120/s · 1080p 300/s · Seedance 2.5 480p 90/s · 720p 180/s · Seedance 2.0 Fast 480p 50/s · 720p 100/s · MiniMax H3 768P 80/s · 2K 160/s; see Billing); a **horizontal ratio `16:9` / `4:3` / `21:9` must be requested alone** (list length 1). Duplicates are dropped and the list is put in a fixed order (9:16 → 3:4 → 1:1 → 4:5): the first ratio in that order is the master render, and each other ratio is reframed from it once it finishes, joining the same `batch_id`. The response doesn't list the ratios back: read each task's `ratio` from `GET /api/tasks/batch/{batch_id}`. Invalid ratio / horizontal-mixed → 400 |
@@ -234,7 +240,7 @@ No auth, and no body required. `client` (optional, `^[a-z0-9][a-z0-9-]{0,63}$`) 
 - Length = the source's length (never compressed); frame shape and language = the source's. One video per character (no character = one video with the original person).
 - Billing is per second like every render, with two differences to know when quoting: each render window bills **whole seconds rounded up** (minimum 4s) of the source's video-stream length, so a 14.3s source bills 15s; a source up to one window long (15s on Seedance 2.0, Seedance 2.0 Fast and MiniMax H3; 30s on Seedance 2.5) is a single window, and a longer one is split at its shot cuts into several windows, each rounded up on its own, so it can bill up to 1s more per extra window than its length rounded up (a 20.5s source split at 11.3s bills 12 + 10 = 22s, not 21s; how many windows a source gets depends on its cuts, so it isn't known before rendering); and every swap render carries the source's own clip as a reference, which costs more to render, so **a swap has its own per-second rate** (display credits per delivered second): Seedance 2.0 480p **60/s** · 720p **120/s** · 1080p **300/s**; Seedance 2.5 480p **90/s** · 720p **180/s**; Seedance 2.0 Fast 480p **50/s** · 720p **100/s**; MiniMax H3 768P **80/s** · 2K **160/s**. Reframed extra ratios (of any riff, creation or swap video) use the same rates. Quote these absolute numbers, never "×N the normal rate". `GET /api/settings` → `video_backends[*].input_video_multiplier` is each engine's swap rate ÷ its normal rate (e.g. 1.2 on Seedance 2.0, 2.0 on H3): use it to compare engines, and `swap-quote` for the price.
 - **Quote before you submit** (template source): `GET /api/riffs/swap-quote` returns the seconds and credits one video holds on the chosen engine, from the same rules the 402 gate and the hold use: never compute a swap price yourself. For a source within one window that is exactly what the video bills; for a longer source, quote it as "about" that price, since each extra window can add up to 1s. Multiply `credits` by the number of characters (one video each). If `source_seconds` is null, `credits` is a 15-second placeholder, not a price: say the length couldn't be measured and the charge follows the seconds actually rendered. A new upload, or a TikTok link not yet analyzed, has no swap-quote; `GET /api/riffs/quote` gives an approximate price for it (the link's length read from its metadata, the upload's from your measurement), and the exact check runs at submit and again before analysis, with the usual 402.
-- Swap errors: nothing to change (no character, no product with images, empty `content_anchor`) → 400 ("A swap needs at least one change…"); only a character, but the template shows no person → 400 ("This video shows no person to replace…"). Both are 400s with a localized `detail` sentence and no machine code: relay `detail`, and don't match on the English text, which follows the request language. The lowercase codes `swap_nothing_to_change` / `swap_no_person_to_replace` appear only in the analyze task's `result.auto_generate_error` (new upload / TikTok link). Source over the render cap → 400 (the same localized too-long sentence as uploads, en: "This video is ~Ns, over the Ms limit. …"); a template that has no source video → 400 ("can't be used for a swap"). A source clip refused by the Seedance content review fails the task (see Details by step → Progress), unbilled.
+- Swap errors: nothing to change (no character, no product with images, no reference image, empty `content_anchor`) → 400 ("A swap needs at least one change…"); only a character, but the template shows no person → 400 ("This video shows no person to replace…"). Both are 400s with a localized `detail` sentence and no machine code: relay `detail`, and don't match on the English text, which follows the request language. The lowercase codes `swap_nothing_to_change` / `swap_no_person_to_replace` appear only in the analyze task's `result.auto_generate_error` (new upload / TikTok link). Source over the render cap → 400 (the same localized too-long sentence as uploads, en: "This video is ~Ns, over the Ms limit. …"); a template that has no source video → 400 ("can't be used for a swap"). A source clip refused by the Seedance content review fails the task (see Details by step → Progress), unbilled.
 
 #### `GET /api/riffs/swap-quote` — price a swap before submitting
 
@@ -302,6 +308,7 @@ No params. For a source video you cannot send yourself as `video` (it is on the 
 | `resolution` | string | | engine base | Engine-scoped: `720p` / `480p` / `1080p` for `seedance`, `720p` / `480p` for `seedance25` and `seedance_fast` (no 1080p on either), `768P` / `2K` for `minimax`. `480p` is draft quality at a lower rate. **Omit it** and you get that engine's base tier (a free-tier account gets that engine's free tier: `480p` on `seedance` / `seedance_fast`); a value the picked engine doesn't sell is a 400. Billing is per second at the (engine, tier) rate, same table as riffs. Live rates: `GET /api/billing/subscription` → `video_credits_per_second_map`; the engines a deployment offers and each one's tiers: `GET /api/settings` → `video_backends` — each entry carries `name`, `resolutions`, `locked: true` when THIS account may use none of its tiers, and `locked_resolutions` (tiers this account may not use; free tier: everything except Seedance 2.0 Fast 480p and Seedance 2.0 480p). Offer only unlocked pairs instead of discovering the 403 |
 | `video_ratios` | string[] | | `["9:16"]` | Delivery aspect ratios (array here, unlike riffs' string). Vertical group `9:16`/`3:4`/`1:1`/`4:5` multi-selectable (fans out one video per ratio × character; each extra ratio is metered at that engine's reframe rate, same table as riffs); a horizontal ratio `16:9`/`4:3`/`21:9` must be alone. Invalid / horizontal-mixed → 400 |
 | `delivery` | string | | `whole` | As on `POST /api/riffs`: `sections` only when the user asks; a free-tier account always gets `sections` |
+| `reference_ids` / `product_image_ids` / `mentions` | array | | | As on `POST /api/riffs`, each a JSON array here (not a string) |
 
 **Response (`PipelineBatchResponse`):** `batch_id` / `task_ids[]` / `total` (`task_ids` are the MASTER tasks; extra-ratio reframe children join the same `batch_id` after each master completes).
 
@@ -332,6 +339,7 @@ The second generation mode: no source video, no template — the **creative dire
 | `resolution` | string | no | Engine-scoped: `720p`/`480p`/`1080p` (seedance), `720p`/`480p` (seedance25, seedance_fast) or `768P`/`2K` (minimax). Omit for the engine base tier (a free-tier account gets that engine's free tier: `480p` on `seedance` / `seedance_fast`); a value the picked engine doesn't sell is a 400. Same rate rules as riffs |
 | `video_ratio` | string | no | Single ratio, default `9:16` (creation has no reframe fan-out at submit; add ratios later with `POST /api/pipeline/backfill`) |
 | `delivery` | string | no | `whole` (default) / `sections`, as on `POST /api/riffs`: `sections` only when the user asks; a free-tier account always gets `sections` |
+| `reference_ids` / `product_image_ids` / `mentions` | array | no | As on `POST /api/riffs`, each a JSON array here (not a string) |
 
 **Response:** `{batch_id, task_ids: string[], total}` — one task per character (or one Auto task). Task `type` is `creation`; poll the batch exactly like a riff. 402 detail shape is identical to riffs. Task output shows in Library like any riff (`AssetOut.content_anchor` carries the direction).
 
@@ -428,22 +436,22 @@ Re-run the analysis of one of **your own** templates (`visibility=scope`, `statu
 
 ---
 
-### Creation caps (characters / products / avatars)
+### Creation caps (characters / products / avatars / images)
 
-How many characters, products, and avatars an account may own depends on whether the wallet has ever paid. **The numbers are runtime-tunable — never hardcode them; read them from `GET /api/settings` → `creation_limits` and pre-check before staging a new character/product/avatar.**
+How many characters, products, avatars, product images and reference images an account may own depends on whether the wallet has ever paid. **The numbers are runtime-tunable — never hardcode them; read them from `GET /api/settings` → `creation_limits` and pre-check before staging a new one.**
 
-| Tier | Characters | Products | Avatars per character |
-|---|---|---|---|
-| **Free** (wallet never purchased / subscribed / comped) | 1 | 1 | 1: the one uploaded at creation. A new upload is allowed only if that one failed review (failed avatars don't use the slot; one still in review does) or was deleted |
-| **Paid** | 50 | 50 | 10 |
-| Staff | unlimited | unlimited | unlimited |
+| Tier | Characters | Products | Avatars per character | Images per product | Reference images |
+|---|---|---|---|---|---|
+| **Free** (wallet never purchased / subscribed / comped) | 1 | 1 | 1: the one uploaded at creation. A new upload is allowed only if that one failed review (failed avatars don't use the slot; one still in review does) or was deleted | 1 | 1 |
+| **Paid** | 50 | 50 | 10 | 8 | 200 |
+| Staff | unlimited | unlimited | unlimited | unlimited | unlimited |
 
-`creation_limits` = `{tier: "free" \| "paid" \| "staff", characters, products, avatars_per_character}`, each count an integer or `null` (= unlimited). The caps are **per scope** (a team's members share the owner's allowance), and they are re-derived server-side on every create, so the pre-check only saves a round-trip — the errors below still have to be handled.
+`creation_limits` = `{tier: "free" \| "paid" \| "staff", characters, products, avatars_per_character, product_images, references}`, each count an integer or `null` (= unlimited). The caps are **per scope** (a team's members share the owner's allowance), and they are re-derived server-side on every create, so the pre-check only saves a round-trip — the errors below still have to be handled.
 
-The capped writes are `POST /api/characters`, `POST /api/products`, and `POST /api/characters/{character_id}/avatars`. Deleting an unused character / product / avatar version frees a slot immediately (a character's only avatar may be deleted even while active — the character then has no avatar until a new upload is approved). Creates are also throttled per workspace (`429` past roughly 20 characters / 30 products / 20 avatar uploads per hour) — a person never reaches that; do not loop.
+The capped writes are `POST /api/characters`, `POST /api/products`, `POST /api/characters/{character_id}/avatars`, `POST /api/products/{product_id}/images` and `POST /api/references` (an image added through an upload link counts the same: `POST /api/image-uploads` checks the cap when the link is made). Deleting an unused character / product / avatar version frees a slot immediately (a character's only avatar may be deleted even while active — the character then has no avatar until a new upload is approved). Creates are also throttled per workspace (`429` past roughly 20 characters / 30 products / 20 avatar uploads / 60 reference images per hour) — a person never reaches that; do not loop.
 
-- **Free tier over a cap → `403`** with the **same** `{"error": "subscription_required", "message", "subscribe_url"}` detail as the analyze and engine paywalls — handle it identically (see the `403` paragraph under `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` **verbatim**, do not retry.
-- **Paid tier over a cap → `400`** `{"error": "limit_reached", "kind": "character" \| "product" \| "avatar", "limit": <N>, "message": <localized sentence>}`. This is a stop, not an upsell: relay `message` and tell the user to delete an unused one (or reuse an existing character/product) — **do not** pitch a plan and do not retry.
+- **Free tier over a cap → `403`** with the **same** `{"error": "subscription_required", "message", "subscribe_url"}` detail as the analyze and engine paywalls (plus `code` `creation_cap`) — handle it identically (see the `403` paragraph under `POST /api/formulas/analyze`): relay `message`, hand over `subscribe_url` **verbatim**, do not retry.
+- **Paid tier over a cap → `400`** `{"error": "limit_reached", "kind": "character" \| "product" \| "avatar" \| "product_image" \| "reference", "limit": <N>, "message": <localized sentence>}`. This is a stop, not an upsell: relay `message` and tell the user to delete an unused one (or reuse an existing character/product) — **do not** pitch a plan and do not retry.
 
 ---
 
@@ -490,19 +498,22 @@ Clears the sample (generation falls back to the default voice). **Response:** up
 | `id` / `name` | string | Product ID / name |
 | `description` | string? | Product description (**the single source of product fact**; Stage B infers category/tags from it as needed) |
 | `target_audience` | string? | Target audience |
-| `images` | `ProductImageOut[]` | Product images |
+| `appearance` | string? | How the product is in frame: `object` (held or shown), `worn` (see `wear_part`), `place` (the scene itself), `screen` (an app or a site, on a screen); null = not set, the video decides |
+| `wear_part` | string? | With `worn`: `full_look` / `top` / `bottom` / `outer` / `shoes` / `bag` / `accessory` |
+| `appearance_source` | string? | `user` (a person set it) / `ai` (judged from a picture) / null |
+| `images` | `ProductImageOut[]` | Product images, in the product's order |
 
 **ProductImageOut:**
 
 | Field | Type | Notes |
 |------|------|------|
-| `id` | string | Image ID |
+| `id` | string | Image ID: what `product_image_ids` and a `product_image` mention take |
 | `url` | string | Image URL |
-| `name` | string | **Image name** — write this name in `content_anchor` text to place the image on screen (on_camera). An unnamed image can't be referenced |
-| `description` | string | Image description |
-| `usage_context` | string | User-written "when to use this image" |
+| `name` | string | Image name (written from the picture unless one was sent; unique within the product) |
+| `description` | string | What the picture shows |
 | `content_policy` | string | `locked` (default, AI cannot edit it) / `mutable` (editable) |
-| `caption_status` | string | Background vision-captioning state: `pending` (generating) / `""` (not captioning: finished, skipped, or failed). Don't treat pending as an error; check `description` to see whether a caption was actually written |
+| `caption_status` | string | Background vision-captioning state: `pending` (generating) / `""` (not captioning: finished, skipped, or failed). Don't treat pending as an error; check `name` / `description` to see whether they were written |
+| `media` | object? | The image as a media file (`ReferenceOut`, see "Reference images"): `media.id` can be sent in `reference_ids`; `media.seedance_review` = `refused` means a Seedance engine can't use it |
 
 #### `POST /api/products`
 
@@ -512,23 +523,55 @@ Clears the sample (generation falls back to the default voice). **Response:** up
 
 #### `POST /api/products/{product_id}/images`
 
-Add an image. URL or file (**either/or**). Max 8 images per product (either source; a 9th → 400). File uploads: `.jpg/.jpeg/.png/.webp` (other formats → 400), ≤50MB each (over → 413), and an image whose short edge is too small or whose aspect ratio is too narrow or too wide for the video engine → 400 (the message states the limit and the image's size). URL images must be a public **https** link (http, or a host that doesn't resolve to a public address → 400); they aren't checked for format, size or dimensions here.
+Add an image **file** (multipart). A link to an image is not accepted (400). `.jpg/.jpeg/.png/.webp` (other formats → 400), ≤50MB (over → 413). A file that cannot be read as an image, an image whose short edge is too small or whose aspect ratio is too narrow or too wide for the video engine, or one with more than 120 million pixels → 400 (the message says which, with the image's size). A product holds at most 8 images (a 9th → 400); a free-tier account, 1 per product (`creation_limits.product_images`; over it → the `403` / `400` of "Creation caps"). When only the user has the file, use `POST /api/image-uploads`.
 
 **Form:**
 
 | Field | Type | Req | Notes |
 |------|------|------|------|
-| `file` | File | either/or | Upload image |
-| `image_url` | string | either/or | Public **https** image URL (http is rejected) |
-| `name` | string | ✓ | **Image name** (required on new upload; non-empty names are unique per product, trimmed, case-insensitive) |
-| `image_id` | string | | Custom id (else derived from filename/URL; reserved words `protagonist` / `supporting_a`~`z` not allowed) |
-| `description` | string | | Image description (for a file upload left blank → captioned automatically in the background, `caption_status=pending` meanwhile; URL images are never auto-captioned, nor are uploads once the workspace's free-cost guard is exceeded, and captioning can come back empty, so write the description yourself when it matters) |
-| `usage_context` | string | | When to use this image |
+| `file` | File | ✓ | The image |
+| `name` | string | | Image name. Left out, Riffkit names the image from the picture within seconds; a name you send is kept (non-empty names are unique per product, trimmed, case-insensitive) |
+| `description` | string | | What the picture shows. Left blank → written automatically in the background (`caption_status=pending` meanwhile); not written once the workspace's free-cost guard is exceeded, and captioning can come back empty, so write it yourself when it matters |
 | `content_policy` | string | | `locked` (default) / `mutable` |
 
 **Response:** `ProductOut` (the full updated product).
 
-> Multi-image upload must be **serial** (one awaited after another, not parallel) — the backend does read-modify-write per product, and parallel uploads race and drop images.
+> Multi-image upload must be **serial** (one awaited after another, not parallel).
+
+---
+
+### Reference images
+
+Pictures the account keeps for its videos to show: an outfit, a place, a prop, or anything else. A video uses the ones whose ids are sent as `reference_ids` (see `POST /api/riffs`). Editing and removing them is done on the References page of the web app.
+
+#### `GET /api/references` → `{items: ReferenceOut[], total, counts}`
+
+Query: `type` (`all` default / `worn` / `place` / `object` / `other` / `untyped`), `page` (1-based), `limit` (default 60, max 200). Newest first. `counts` gives the number of images per type.
+
+**ReferenceOut:**
+
+| Field | Type | Notes |
+|------|------|------|
+| `id` | string | What `reference_ids` and a `reference` mention take |
+| `url` | string | Image path (fetch `${BASE_URL}${url}` with the session cookie) |
+| `name` / `description` | string | Written from the picture within seconds of the upload (`caption_status=pending` meanwhile); the user can edit both |
+| `reference_type` | string? | `worn` (an outfit or something worn) / `place` (a location) / `object` (a prop) / `other`; null = not set |
+| `wear_part` | string? | With `worn`: `full_look` / `top` / `bottom` / `outer` / `shoes` / `bag` / `accessory` |
+| `type_source` | string? | `user` / `ai` (guessed from the picture) / null |
+| `product_count` / `in_library` | int / bool | How many products also hold this image; whether it is in the library (false for an image that is only a product's) |
+| `seedance_review` | string? | Only for a picture with a real face: `pending` / `ok` / `refused` (a Seedance engine can't use it; MiniMax H3 can). null = no face, or not judged yet |
+
+#### `POST /api/references` — add a reference image (a file)
+
+**Form:** `file` (✓; `.jpg/.jpeg/.png/.webp`, ≤50MB; the same picture rules as a product image), `reference_type` (optional: `worn` / `place` / `object` / `other`; left out, Riffkit decides from the picture), `wear_part` (only with `worn`), `name` (optional, ≤40 characters). **Response:** `ReferenceOut` (201). Capped per account (`creation_limits.references`; over it → the `403` / `400` of "Creation caps").
+
+#### `POST /api/image-uploads` — a link where the user adds an image from their own device
+
+For an image you cannot send yourself (it is on the user's phone, or you have no file access). **Body (JSON):** `product_id` (optional: the image becomes one of that product's images; left out, it goes to the reference library), `reference_type` (optional, library only: `worn` / `place` / `object` / `other`), `name` (optional: the user's own words for the picture, kept as its name; left out, Riffkit names it from the picture when it can). The limits of a direct upload are checked when the link is made (a product or library that is full answers the same `403` / `400`). The page asks for no sign-in, so anyone who holds the link can add one image to this account for up to 90 minutes. Give the user `url` exactly as returned, ask them to say when the image is added, and keep `upload_id`. **Response:** `upload_id`, `url`, `expires_at` (naive UTC), `seconds_valid`, `kind` (`image`), `product_id`. One image per link. Rate limit 20 / 10 min. Nothing is charged.
+
+#### `GET /api/image-uploads/{upload_id}` — has the image arrived?
+
+`upload_id` (path) is the id `POST /api/image-uploads` returned. Ask when the user says the image is added, not in a loop. **Response:** `status` = `waiting` (nothing yet; `seconds_valid` = how long the page still takes a file, 0 = make a new link; `refused_as` says why the page turned the last file away: `too_large`, `bad_type`, `too_small` (short side under 300 px), `bad_shape` (too long and thin for a video), `too_many_pixels`, `not_an_image` (it cannot be read as an image), `full` = the product or the library already holds as many images as the account may keep, or `name_taken` = another image of the product now has the `name` the link was made with (make a link with another name); otherwise the same link takes another file) / `added` (for a product: `product_id` + `image_id`, an id for `product_image_ids`; for the library: `reference_id`, an id for `reference_ids`; the name, unless one was given, and the description are written from the picture shortly after, when Riffkit can) / `expired` (make a new link). Another account's upload, or a video link's id → 404; so is a link whose record is gone, about a day after its image was added: if the user said the image went in, look for it in `GET /api/products` / `GET /api/references` before making another link. Nothing is changed or charged.
 
 ---
 
@@ -593,10 +636,10 @@ Cancel a `queued`/`running` task. Other states → 400. A running task already i
 
 Retry a `failed`/`dead` task (retryable within 24h and only if the schema version matches). **It re-runs the same task (same `task_id`) and picks up from its saved progress: video parts that finished before the failure are usually reused and not billed again; only what it renders again is billed, and nothing is billed for what fails. Reuse isn't guaranteed (e.g. when saved parts can't be restored), so the cost can reach the full video's price.** `dead` means the task was interrupted and couldn't resume on its own (see Task state machine); retry is the only way to recover it, and retrying a subtitle burn / reconcile is free. Usage: on "run it again" → **first state the most the retry can cost**, from the server, never your own arithmetic: the quote for the same arguments as the task (its own `mode`, source, `video_backend`, `resolution` and `delivery` from `GET /api/tasks/{task_id}`) — `GET /api/riffs/quote` for a riff or swap, `GET /api/creation/quote` for a creation, `credits_per_ratio` from `GET /api/pipeline/backfill/occupied` for a reframed extra ratio — and say it can cost less if part of the video was already made; `GET /api/usage/credits` gives the balance to compare against → let the user decide; if the failure was user-fixable (bad product image / stale template analysis), fix the cause first. Note: retrying an **analyze** task whose template was deleted after the failure rebuilds that template (same id) and completes normally — the deleted card reappears in `GET /api/formulas`.
 
-A refused retry restarts and bills nothing, and its `detail` is always Chinese, so explain it in the user's language:
+A refused retry restarts and bills nothing. Explain it in the user's language (for a `failed` / `dead` task the `detail` is always Chinese):
 - `410`: more than 24 h have passed since the task was first submitted (`created_at`, UTC; a retry doesn't restart this clock, so check it before quoting a retry), or it is a riff or swap submitted before a Riffkit update that changed how riffs are built (unrelated to which video engine was picked). Say it's too old to retry and offer a fresh submit of the same kind with the same options: a riff or swap → `POST /api/riffs` with the same `mode` (a template source, `formula_id`, reuses its saved analysis); a creation → `POST /api/creation/batch`; an extra ratio (`reframe_master_task_id` set) → `POST /api/pipeline/backfill`; a template analysis → the same source sent the same way again; a subtitle burn / reconcile → the same `POST /api/assets/{asset_id}/subtitles/…` call.
-- `409`: the task's previous run is still shutting down. Wait about a minute and retry once; if it's still `409`, tell the user and check back later (ignore the `detail`'s advice to cancel: a failed task can't be cancelled).
-- `400`: the task isn't `failed`/`dead` (a `cancelled` task can't be retried, and one an earlier retry already restarted reads `queued`). Poll `GET /api/tasks/{task_id}` instead of submitting again.
+- `409`: the task's previous run is still shutting down. Wait about a minute and retry once; if it's still `409`, tell the user and check back later (ignore the `detail`'s advice to cancel: a failed task can't be cancelled). On a `completed` analysis (below) a `409` whose `detail` is an object says something else: `code` `chain_resuming` = another retry is submitting it; `code` `not_submitted` = the video was not submitted, for the `reason` and `message` it gives (the product was deleted, the source is too long…): relay `message`, fix that and submit again, don't wait and retry.
+- `400`: the task isn't `failed`/`dead` (a `cancelled` task can't be retried, and one an earlier retry already restarted reads `queued`). Poll `GET /api/tasks/{task_id}` instead of submitting again. One exception is retried while `completed`: an analysis whose `result.auto_generate_error` is `insufficient_credits` (its video was never submitted). Retrying it submits the video with the options the riff was submitted with; it answers `402` while the balance is still short.
 - `404`: no such task in this account.
 
 #### `GET /api/tasks/{task_id}/content` — extraction/rewrite preview (optional)
@@ -629,10 +672,6 @@ Review what the engine "extracted / rewrote" for a task, for the delivery strate
 #### `GET /api/assets/{asset_id}/link` — a link to a finished video that needs no session
 
 `asset_id` (path) is the id of a finished video (`asset_role=final_reel`): a completed task's `result.asset_id`, or an `id` from `GET /api/assets`. Returns `{url, expires_at, seconds_valid, watermarked}`: `url` is an absolute link that plays the video in a browser with no cookie (it opens in place rather than as a download), `seconds_valid` is how long it works, counted from the call (21600 = 6 hours), `expires_at` is that moment as a timestamp (naive UTC, like every timestamp here), and `watermarked` says whether the file carries the free plan's small Riffkit watermark. Use it to hand the video to the user where your session cookie doesn't travel: a link in chat, their browser, another tool. Give `url` exactly as returned, say how long it works, and that anyone who holds the link can open the video until then. It points at the video's current file: after a subtitle burn, or once it has stopped working, call again for a fresh one. Nothing is stored or changed and nothing becomes public (a public share page is something the user starts in the web app). 404 = no finished video with that id in this account. Rate limit 60 / 60s.
-
-#### `POST /api/assets/upload` (sidecar; not used by the main flow)
-
-Riff videos are derived from template + product + character — **no manual material upload is needed.** This endpoint only ingests user-provided reference videos/images. **Form:** `file` (✓, video ≤100MB / image ≤50MB), `asset_role` (✓, `reference`), `product_id` / `character_id` / `name` / `notes` (optional).
 
 > To download a finished video: GET `${BASE_URL}${asset.file_url}` **with the `vee_session` cookie and `-L`** (production 302s to object storage; no cookie → 401). There is no `/download` endpoint — `file_url` is the only path for your own download; for a link the user opens without the cookie, see `GET /api/assets/{asset_id}/link` above.
 

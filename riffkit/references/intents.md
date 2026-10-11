@@ -11,7 +11,8 @@
 | Browse templates | "what templates are there", "which is hot lately" | `GET /api/formulas?status=analyzed&template_type=pipeline` (by `used_count` / `tags`) |
 | Drill into a template | "tell me about this one", "why recommend it" | `GET /api/formulas/{id}`, read `extraction_summary` |
 | Re-analyze a template / fix its hint | "this is stale", "the hook is actually at 0:05" | `PATCH /api/formulas/{id}` (`user_hint`, optional) → `POST /api/formulas/{id}/refresh-analysis` (your own templates; a stale public template → pick another) |
-| Add a product / image | "I have a new product", "add an image to the product" | Restate + confirm → `POST /api/products` / `POST /api/products/{id}/images` (serial) |
+| Add a product / image | "I have a new product", "add an image to the product" | Restate + confirm → `POST /api/products` → the image as a file: `POST /api/products/{id}/images` (serial), or `POST /api/image-uploads` with the `product_id` when only the user has it |
+| Show an outfit, a place or a prop | "make her wear this", "use this room", "here's the dress" | `GET /api/references` (pick by name and description) or add one (`POST /api/references` / `POST /api/image-uploads`) → `reference_ids` on the submit, with an @-mention when the text says where or how |
 | Pick language | "make it in Spanish", "switch language" | `GET /api/languages` for candidates → set `language` |
 | On / off camera / none | "should the product show", "I don't want a product, just growth" | Explain `product_visibility` (incl. no `product_id` = no_product) + recommend a value |
 | Check progress | "how's it going", "done yet" | `GET /api/tasks/batch/{batch_id}` or `GET /api/tasks/{id}` |
