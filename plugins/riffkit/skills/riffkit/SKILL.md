@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.10.3"
-updated_at: "2026-10-18"
+version: "1.10.4"
+updated_at: "2026-10-19"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
