@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.10.4"
-updated_at: "2026-10-19"
+version: "1.10.5"
+updated_at: "2026-10-20"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Riff winning short videos — give one source (a TikTok link, an uploaded video, or an analyzed template) and the backend riffs its emotion formula into your own AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language. You riff the formula, not the video.
@@ -64,7 +64,7 @@ Take the mode without asking only when the user says Adapt or Swap, or states th
   With the image file on this machine, skip the link: `riffkit add_product_image <product_id> --file ./photo.jpg`, or `riffkit add_reference --file ./outfit.jpg`.
 
 **3. Output.**
-- Adapt: *Language* (English by default), *Aspect ratio* (9:16 by default; each extra vertical ratio is its own charged video), *Engine* and *Resolution* (left out: this account's default pair, `default_video_pairs` in `riffkit get_options`; offer only what `video_backends` there doesn't mark `locked` or list in `locked_resolutions`, and never mention plans; 480p is draft quality), and *Background music*, only for a template whose `bgm_status` is `active` or `policy_violation`: the original music by default, or, when it is `active`, a new track in its style (`bgm_mode` = `source_ref`).
+- Adapt: *Language* (English by default), *Aspect ratio* (9:16 by default; each extra vertical ratio is its own charged video), *Engine* and *Resolution* (left out: this account's default pair, `default_video_pairs` in `riffkit get_options`; offer only what `video_backends` there doesn't mark `locked` or list in `locked_resolutions`, and never mention plans; 480p is draft quality), and *Background music*, only for a template whose `bgm_status` is `active` or `policy_violation`: the original music by default, or, when it is `active`, Similar BGM (`bgm_mode` = `source_ref`: the video model re-creates the original track as it renders, so its melody and lyrics may carry over; it does not avoid the original's rights).
 - Swap: *Engine* and *Resolution* only, chosen as in Adapt: left out, the account's Swap default pair. The engine that swaps best is `swap_recommended_video_backend`: name it only when it isn't `locked`. Language, aspect ratio and sound are the source's: don't ask. A user who wants another language or a new story wants Adapt.
 - How to render: in one go by default. Send `delivery` sections only when the user asks to see the start first (the first section now, the rest later on the same script). When `staged_delivery.forced` in `riffkit get_options` is sections, the account is held to the first section: each video is made in sections and only its first can be made, or made again. Say so in the plan; quote that section only.
 
