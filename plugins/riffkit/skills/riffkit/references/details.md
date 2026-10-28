@@ -71,7 +71,7 @@ Each can be left alone on its default; the agent may suggest where helpful but *
 When `product_id` is empty this field is ignored and the backend derives `no_product`. **The caller may not pass `no_product` directly** (only the two literals on_camera / off_camera are accepted). The script and visual staging differ greatly across modes, so when a product is bound always state the value and the reason at the confirmation step.
 
 **Language (default en)**
-- Candidates from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `zh-CN`, in picker order). Trust the endpoint, don't hardcode.
+- Candidates from `GET /api/languages` (currently `en` / `es` / `pt` / `id` / `de` / `fr` / `it` / `ja` / `ko` / `zh-CN`, in picker order). Trust the endpoint, don't hardcode.
 
 **content_anchor (optional creative direction) + user_hint (optional hook hint)**
 - `content_anchor` is the agent's highest-value contribution: it may proactively draft one for the user to review (see `## content_anchor drafting framework`). If the user doesn't want one, leave it empty — the video still generates.
@@ -87,8 +87,8 @@ Ready to riff:
 ├── Source: [template name / TikTok link / the user's video]
 ├── Character: [name / Auto (AI-generated person); swap: a name / keep the original person]
 ├── Product: [name + visibility / none]
-├── Language: [en / es / pt / id / de / fr / it / ja / zh-CN; swap: the source's own]
-├── Price: [quote `credits` ÷ 100, already the whole batch (one video per character; one with no character or when keeping the original person); "about" when `exact` is false, when you asked for more than one ratio (each extra ratio is re-priced from the finished video), or for a swap source longer than one render window. Made in sections: the first section's price, and about the whole (`sections_estimate.whole_credits` ÷ 100). No number when `source_seconds` is null (`credits` is then a minimum, not a price): say the length couldn't be read and the charge follows the real length; if `probe` is `busy`, ask the quote again shortly. Same for a local file whose length you can't measure]
+├── Language: [en / es / pt / id / de / fr / it / ja / ko / zh-CN; swap: the source's own]
+├── Price: [quote `credits` ÷ 100, already the whole batch (one video per character; one with no character or when keeping the original person); "about" when `exact` is false, when you asked for more than one ratio (each extra ratio is re-priced from the finished video), for a swap source longer than one render window, or for a Swap on MiniMax H3 made in one go (a long list of changes can add render calls). Made in sections: the first section's price, and about the whole (`sections_estimate.whole_credits` ÷ 100). No number when `source_seconds` is null (`credits` is then a minimum, not a price): say the length couldn't be read and the charge follows the real length; if `probe` is `busy`, ask the quote again shortly. Same for a local file whose length you can't measure]
 └── content_anchor: [drafted creative direction / none; swap: what changes besides the person]
 ```
 

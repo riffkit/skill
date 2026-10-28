@@ -24,8 +24,6 @@ The formula skeleton decides which psychological path the viewer walks; `content
 [a specific emotion-mechanism beat of the template] × [a specific feature of the product/account] → [the viewer mind-shift you want]
 ```
 
-All three variables must be specific to an actionable level — anything abstract is as good as empty.
-
 | ✅ Focus on | ❌ Don't (lives elsewhere or zero-info) |
 |---|---|
 | The specific product × template join ("the scan feature × the reveal beat at segment 2") | Product generalities ("show the product's strengths") |
@@ -49,7 +47,7 @@ The engine already mirrors the source. Your anchor is a **delta**, not a brief.
 
 2. **Locate every change.** A change stated as a concept loses to the source; the same change stated with a place — which beat, which moment, what happens right before and after — is the one that lands.
 
-3. **Length tracks how far you're departing, not how much you care.** A big departure needs detail; a small one needs a line. "This video matters to me" is never a reason to write more.
+3. **Length tracks how far you're departing, not how much you care.** A big departure needs detail; a small one needs a line.
 
 4. **Keep separate axes separate.** How it's shot (lighting, grain, camera feel) and what's in it (wardrobe, props, setting) are different axes. Collapse them into one sentence and one will drag the other — asking for an unpolished look often flattens the subject too.
 
