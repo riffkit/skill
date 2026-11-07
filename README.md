@@ -70,11 +70,13 @@ https://github.com/user-attachments/assets/e2fb65c3-5123-409f-bdce-3f64b4a66f48
 | **Claude Code · Codex · Cursor · OpenClaw** — any agent that can run terminal commands | `Run curl -fsSL https://riffkit.ai/SKILL.md in your terminal and follow the instructions to join Riffkit` |
 | **Claude Code plugin** — install from this repo as a marketplace | `/plugin marketplace add riffkit/skill`, then `/plugin install riffkit@riffkit` |
 | **DeepSeek Harness (DSH)** — reads `SKILL.md` natively | `mkdir -p ~/.agents/skills/riffkit && curl -sSL https://riffkit.ai/SKILL.md -o ~/.agents/skills/riffkit/SKILL.md` |
+| **ChatGPT** — in the ChatGPT app directory | [Open Riffkit in ChatGPT](https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5), then connect your Riffkit account |
+| **Claude** (claude.ai, desktop, mobile) | Add the connector `https://mcp.riffkit.ai/mcp` ([steps](https://riffkit.ai/mcp)) |
 | **Browser** — no agent needed | Upload a clip or paste a TikTok link at [riffkit.ai](https://riffkit.ai) |
 
 `~/.agents/skills` is the shared skill root several harnesses scan, so the DSH line above also registers Riffkit anywhere else that reads it. Verified against DSH's own `dsh-skill-filesystem` provider: discovered, frontmatter parsed, full body loaded, no changes to the skill required.
 
-Nothing to run locally and no local models: the skill is a thin layer over Riffkit's hosted backend. Chat assistants such as Claude and ChatGPT connect through Riffkit's hosted MCP connector instead, at `https://mcp.riffkit.ai/mcp` ([setup](https://riffkit.ai/mcp)).
+Nothing to run locally and no local models: the skill is a thin layer over Riffkit's hosted backend. Chat assistants connect through Riffkit's hosted MCP connector instead, at `https://mcp.riffkit.ai/mcp`: in ChatGPT it is in the app directory ([open it](https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5)), and other assistants add it by URL ([setup](https://riffkit.ai/mcp)).
 
 ## What you get
 
@@ -100,9 +102,9 @@ Short, real walkthroughs — the prompt you give your agent and what comes back:
 
 **Do I need an account?** Yes — Riffkit is hosted; generating videos needs a Riffkit account, billed by the second of finished video.
 
-**Which agents work?** Any assistant that can read a URL and make HTTP calls — Claude Code, Codex, Cursor, OpenClaw, and more. Chat assistants such as Claude and ChatGPT add the hosted connector `https://mcp.riffkit.ai/mcp` instead ([setup](https://riffkit.ai/mcp)).
+**Which agents work?** Any assistant that can read a URL and make HTTP calls — Claude Code, Codex, Cursor, OpenClaw, and more. In ChatGPT, open Riffkit from the app directory ([link](https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5)); Claude and other chat assistants add the hosted connector `https://mcp.riffkit.ai/mcp` ([setup](https://riffkit.ai/mcp)).
 
-**What languages?** Nine: English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese and Chinese — native phrasing and fonts, not a translated subtitle laid on top.
+**What languages?** Ten: English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese, Korean and Chinese — native phrasing and fonts, not a translated subtitle laid on top.
 
 **Is my source video re-uploaded?** No. Riffkit studies the *formula* and generates new footage; the source clip is never re-hosted, so the output is your own original.
 
@@ -124,6 +126,8 @@ TikTok Shop & e-commerce sellers, performance marketers running TikTok & Meta ad
 - Pricing — https://riffkit.ai/pricing
 - Blog — https://riffkit.ai/blog
 - Live skill (source of truth) — https://riffkit.ai/SKILL.md
+- ChatGPT app — https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5
+- Chat-assistant setup (Claude, ChatGPT and more) — https://riffkit.ai/mcp
 - ClawdHub listing — https://clawhub.ai/riffkit/skills/riffkit
 
 ---
