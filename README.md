@@ -1,7 +1,7 @@
 # Riffkit — riff winning TikTok videos into your own
 
 [![Live skill](https://img.shields.io/badge/skill-riffkit.ai%2FSKILL.md-6d4ae0)](https://riffkit.ai/SKILL.md)
-[![ClawdHub](https://img.shields.io/badge/ClawdHub-riffkit-ff6a3d)](https://clawhub.ai/riffkit/skills/riffkit)
+[![ClawHub](https://img.shields.io/badge/ClawHub-riffkit-ff6a3d)](https://clawhub.ai/riffkit/skills/riffkit)
 [![License: MIT](https://img.shields.io/badge/license-MIT-3b82f6)](LICENSE)
 
 **Don't copy. Riff.** Riffkit takes a winning short video, studies its *formula* — the hook, the pacing, the emotional beats — and generates a brand-new video around your product, your character, and your story. It never re-uploads the source clip; what comes out is your own original.
@@ -128,7 +128,7 @@ TikTok Shop & e-commerce sellers, performance marketers running TikTok & Meta ad
 - Live skill (source of truth) — https://riffkit.ai/SKILL.md
 - ChatGPT app — https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5
 - Chat-assistant setup (Claude, ChatGPT and more) — https://riffkit.ai/mcp
-- ClawdHub listing — https://clawhub.ai/riffkit/skills/riffkit
+- ClawHub listing — https://clawhub.ai/riffkit/skills/riffkit
 
 ---
 
