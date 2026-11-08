@@ -83,7 +83,7 @@ Nothing to run locally and no local models: the skill is a thin layer over Riffk
 - **Riffs the formula, not the footage** — studies a proven video's hook, pacing, and beats, then generates new footage. The source clip is never re-uploaded, so the result is your own original.
 - **Your product, woven in** — a physical item or an app screen, placed into the story the format calls for (not bolted onto a generic stock avatar).
 - **A consistent character** — your own avatar and persona across every video, or **Auto** (no avatar needed).
-- **Nine languages** — English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese or Chinese, with native phrasing and the right fonts, not a translated subtitle laid on top.
+- **Ten languages** — English, Spanish, Portuguese, Indonesian, German, French, Italian, Japanese, Korean or Chinese, with native phrasing and the right fonts, not a translated subtitle laid on top.
 - **Post-ready** — voiceover, on-screen captions timed to the audio, a cover frame, and a caption with hashtags.
 - **Ad-ready** — the same riff doubles as UGC-style ad creative for TikTok Ads & Meta Ads, batched so the testing engine never runs dry.
 - **Any look** — real footage, cartoon, or game-style; the music ducks under the voiceover so it reads as real, not AI.

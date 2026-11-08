@@ -47,6 +47,13 @@ jobs:
           rm -rf "$P" && mkdir -p "$P"
           cp SKILL.md HEARTBEAT.md "$P"/
           cp -R references "$P"/references
+      - name: Refresh plugin listing
+        # plugin.json and marketplace.json sit outside the folders the step
+        # above deletes. Their description is the served SKILL.md's own
+        # description and plugin.json's version is SKILL.json's, so the plugin
+        # listing never drifts from the skill. Exits non-zero (and the commit
+        # step does not run) if the description cannot be read.
+        run: python3 scripts/plugin_meta.py SKILL.md SKILL.json
       - name: Commit if changed
         run: |
           git config user.name "riffkit-bot"

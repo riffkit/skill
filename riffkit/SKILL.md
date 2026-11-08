@@ -1,6 +1,6 @@
 ---
 name: riffkit
-version: "1.10.8"
+version: "1.10.9"
 updated_at: "2026-11-07"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
@@ -12,10 +12,11 @@ description: "Change the outfit, person, place or product in a short video and k
 
 ## Start here
 
-1. **Node 20+ installed (`node -v`)?** If `riffkit --version` fails or shows a version below 0.2.0, run `npm i -g @riffkit/cli@latest`. Then run `riffkit login --agent`: it prints the approval link and exits with code 12 while the user has not approved yet (or your command times out). Send the user the link exactly as printed, and run `riffkit login --agent` again after they say they approved (if a re-run prints a new link, send that one). From then on every Riffkit call is a `riffkit` command, never curl: each step of **The flow** names its command, `riffkit help` lists them all with their routes, and `riffkit help <command>` shows what a command does and its options.
-2. **No Node 20+, or the install fails?** Each command is one HTTP call: references/api.md lists them, starting with **Auth**.
-3. **Three hard stops.** Adapt or Swap is the user's choice: ask unless their words name it. Spend credits (a command run with `--yes`, or an HTTP call that spends) only after the user approved the plan you restated and its quoted price. Never say a video is ready without the finished task's `asset_id`; hand it over with a link from `riffkit get_video_link`.
-4. **Read this whole file before acting**, and a reference file (index at the end) when a step points to it. If a web-reading tool gave you a summary, read it again in full: `curl -fsSL https://riffkit.ai/SKILL.md` (save it to a file and read the file if your shell shows only a preview).
+1. **No terminal here (ChatGPT, Claude or another chat app)?** Tell the user to add Riffkit to that app instead: Riffkit is in ChatGPT's plugin directory (`https://chatgpt.com/plugins/plugin_asdk_app_6ac1d83b7c0081918475085dec6634c5`), and other chat apps add the connector address `https://mcp.riffkit.ai/mcp`. Steps for each app: `https://riffkit.ai/mcp#set-up`.
+2. **Node 20+ installed (`node -v`)?** If `riffkit --version` fails or shows a version below 0.2.0, run `npm i -g @riffkit/cli@latest`. Then run `riffkit login --agent`: it prints the approval link and exits with code 12 while the user has not approved yet (or your command times out). Send the user the link exactly as printed, and run `riffkit login --agent` again after they say they approved (if a re-run prints a new link, send that one). From then on every Riffkit call is a `riffkit` command, never curl: each step of **The flow** names its command, `riffkit help` lists them all with their routes, and `riffkit help <command>` shows what a command does and its options.
+3. **No Node 20+, or the install fails?** Each command is one HTTP call: references/api.md lists them, starting with **Auth**.
+4. **Three hard stops.** Adapt or Swap is the user's choice: ask unless their words name it. Spend credits (a command run with `--yes`, or an HTTP call that spends) only after the user approved the plan you restated and its quoted price. Never say a video is ready without the finished task's `asset_id`; hand it over with a link from `riffkit get_video_link`.
+5. **Read this whole file before acting**, and a reference file (index at the end) when a step points to it. If a web-reading tool gave you a summary, read it again in full: `curl -fsSL https://riffkit.ai/SKILL.md` (save it to a file and read the file if your shell shows only a preview).
 
 **Core stance: you riff the formula, not the video.** Give one winning source; the backend analyzes the emotion formula that hijacks attention and migrates it onto your own content. The footage can be completely different as long as the viewer travels the same psychological path. Or keep the footage: a **Swap** re-shoots the source's own shots and changes only who or what is in them.
 

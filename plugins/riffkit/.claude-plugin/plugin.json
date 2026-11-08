@@ -1,7 +1,8 @@
 {
   "name": "riffkit",
   "displayName": "Riffkit",
-  "description": "Remake a winning TikTok, Reel or Short into your own video (Adapt), keep a video's shots and change the person, product or style (Swap), or make one from a written idea. Product ads and UGC-style videos in 9 languages; the agent quotes the price before it spends credits.",
+  "version": "1.10.9",
+  "description": "Change the outfit, person, place or product in a short video and keep every shot, or turn a winning short video into your own: give one source (a video of your own, a TikTok link, or an analyzed template) or just an idea, and the backend makes the AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language.",
   "author": {
     "name": "Riffkit",
     "email": "team@riffkit.ai",
@@ -10,5 +11,14 @@
   "homepage": "https://riffkit.ai/skill",
   "repository": "https://github.com/riffkit/skill",
   "license": "MIT",
-  "keywords": ["video", "tiktok", "reels", "shorts", "ugc", "ads", "product-video", "ai-video"]
+  "keywords": [
+    "video",
+    "tiktok",
+    "reels",
+    "shorts",
+    "ugc",
+    "ads",
+    "product-video",
+    "ai-video"
+  ]
 }

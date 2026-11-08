@@ -15,4 +15,4 @@ What Riffkit does:
 
 https://github.com/user-attachments/assets/a3016013-fa4a-48cf-8c74-8fe1cb3e2a48
 
-Riffkit speaks English and Spanish. Run it from your agent or in the browser at [riffkit.ai](https://riffkit.ai).
+Spanish is one of Riffkit's ten output languages. Run it from your agent or in the browser at [riffkit.ai](https://riffkit.ai).
