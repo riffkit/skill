@@ -1,7 +1,7 @@
 ---
 name: riffkit
-version: "1.10.9"
-updated_at: "2026-11-07"
+version: "1.10.10"
+updated_at: "2026-11-14"
 source_url: "https://riffkit.ai/SKILL.md"
 homepage: "https://riffkit.ai"
 description: "Change the outfit, person, place or product in a short video and keep every shot, or turn a winning short video into your own: give one source (a video of your own, a TikTok link, or an analyzed template) or just an idea, and the backend makes the AI video (post-ready short-form or UGC-style ad creative), with optional digital character, product placement, and language.
